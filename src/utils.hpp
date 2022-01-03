@@ -23,6 +23,30 @@ void gpu_buffer_print(T* d_buffer, uint32_t offset, uint32_t length)
     free(h_buffer);
 }
 
+template <typename T>
+T* vector_to_gpu(const std::vector<T>& vec){
+    T* buff;
+    const auto size = vec.size() * sizeof(T);
+    CUDA_TRY(cudaMalloc(&buff, size));
+    CUDA_TRY(cudaMemcpy(buff, &vec[0], size, cudaMemcpyHostToDevice)); 
+    return buff;
+}
+
+template <typename T>
+std::vector<T> gpu_to_vector(T* buff, size_t length){
+    std::vector<T> vec;
+    const size_t size = length * sizeof(T);
+    vec.resize(size);
+    CUDA_TRY(cudaMemcpy(&vec[0], buff, length * sizeof(T), cudaMemcpyDeviceToHost));
+    return vec;
+}
+
+template <typename T> T* alloc_gpu(size_t length){
+    T* buff;
+    CUDA_TRY(cudaMalloc(&buff, length * sizeof(T)));
+    return buff;
+}
+
 template<typename T>
 std::vector<uint8_t> gen_predicate(const std::vector<T>& col, bool (*predicate)(T value)){
     std::vector<uint8_t> predicate_bitmask{};

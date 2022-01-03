@@ -17,6 +17,8 @@
 #include "csv_loader.hpp"
 #include "utils.hpp"
 
+#include <src/cub_wraps.cuh>
+
 
 
 int gen_dummy_data(){
@@ -65,15 +67,33 @@ int gen_dummy_data(){
     return 0;
 }
 
-
-int main()
+int main(int argc, char** argv)
 {
+    //load data
     std::vector<float> col;
     load_csv("../res/Arade_1.csv", {3}, col);
+    float* d_input = vector_to_gpu(col);
+    float* d_output = alloc_gpu<float>(col.size());
+    // gen predicate mask
     auto pred = gen_predicate(col, +[](float f){return f > 200;});
-    cpu_buffer_print(&pred[0], 0, pred.size());
- 
-
+    uint8_t* d_mask = vector_to_gpu(pred);
+    uint32_t* d_selected_out = alloc_gpu<uint32_t>(1);
+    uint64_t* d_failure_count = alloc_gpu<uint64_t>(1);
+    // run cub
+    cudaEvent_t start, end;
+    CUDA_TRY(cudaEventCreate(&start));
+    CUDA_TRY(cudaEventCreate(&end));
+    launch_cub_flagged_biterator(start, end, d_input, d_output, d_mask, d_selected_out, col.size()); 
+    //gen cpu side validation
+    std::vector<float> validation;
+    validation.resize(col.size());
+    size_t out_length = generate_validation(&col[0], &pred[0], &validation[0], col.size());
+    float* d_validation = vector_to_gpu(validation);
+    
+    // cross check validation
+    kernel_check_validation<<<64, 32>>>(d_validation, d_output, out_length, d_failure_count);
+    auto vec = gpu_to_vector(d_failure_count, 1);
+    std::cout << vec[0] << std::endl;
     return 0;
    
 }
