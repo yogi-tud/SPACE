@@ -1,18 +1,29 @@
-# convenient cuda clang support was added in 3.18
-cmake_minimum_required(VERSION 3.18)
+# convenient cuda clang support was added in 3.19
+cmake_minimum_required(VERSION 3.19)
+option(USE_CLANG ON "use clang instead of nvcc")
 
-set(CMAKE_CUDA_COMPILER "clang++")
-set(CMAKE_CXX_COMPILER "clang++")
+if(${USE_CLANG})
+    set(CMAKE_CUDA_COMPILER "clang++")
+    set(CMAKE_CXX_COMPILER "clang++")
 
-project(gpu_compressstore2 LANGUAGES CXX CUDA)
+    # force c++20
+    set(CMAKE_CXX_STANDARD 20)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    set(CMAKE_CUDA_STANDARD 20)
+    set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+    
+else()
+    set(CMAKE_CXX_STANDARD 20)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    set(CMAKE_CUDA_STANDARD 17)
+    set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+endif()
 
+# don't enable gnu extensions
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# force c++20
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CUDA_STANDARD 20)
-set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+
+project(gpu_compressstore2 LANGUAGES CXX CUDA)
 
 set(INCLUDES
     src

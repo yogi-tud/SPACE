@@ -150,8 +150,11 @@ __global__ void kernel_check_validation(
             failures++;
         }
     }
-
-    __ullAtomicAdd(reinterpret_cast<unsigned long long int *>(d_failure_count), failures);
+    #if defined(__CUDACC__)
+        atomicAdd(reinterpret_cast<unsigned long long int *>(d_failure_count), failures);
+    #else
+     __ullAtomicAdd(reinterpret_cast<unsigned long long int *>(d_failure_count), failures);
+    #endif
 }
 
 #endif

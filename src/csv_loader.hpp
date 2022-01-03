@@ -2,7 +2,6 @@
 
 #include <deps/csv.hpp>
 #include <stdlib.h>
-#include <numeric>
 #include <iterator>
 
 typedef std::initializer_list<int>::iterator ilii;

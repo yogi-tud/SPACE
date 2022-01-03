@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <iterator>
+#include <cub/cub.cuh>
 
 #include "cuda_time.cuh"
 #include "cuda_try.cuh"

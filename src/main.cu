@@ -1,6 +1,5 @@
 #include <bitset>
 #include <cstdlib>
-#include <cub/cub.cuh>
 #include <cstdint>
 #include <iostream>
 #include <stdio.h>
@@ -83,7 +82,8 @@ int main(int argc, char** argv)
     cudaEvent_t start, end;
     CUDA_TRY(cudaEventCreate(&start));
     CUDA_TRY(cudaEventCreate(&end));
-    launch_cub_flagged_biterator(start, end, d_input, d_output, d_mask, d_selected_out, col.size()); 
+    float time = launch_cub_flagged_biterator(start, end, d_input, d_output, d_mask, d_selected_out, col.size()); 
+
     //gen cpu side validation
     std::vector<float> validation;
     validation.resize(col.size());
@@ -93,7 +93,9 @@ int main(int argc, char** argv)
     // cross check validation
     kernel_check_validation<<<64, 32>>>(d_validation, d_output, out_length, d_failure_count);
     auto vec = gpu_to_vector(d_failure_count, 1);
-    std::cout << vec[0] << std::endl;
+    std::cout << "validation failures: " << vec[0] << "\nelapsed time (ms): " << time << std::endl;
+
+
     return 0;
    
 }
