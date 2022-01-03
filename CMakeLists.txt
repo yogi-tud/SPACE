@@ -16,6 +16,7 @@ set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
 set(INCLUDES
     src
+    .
 )
 
 set(SOURCES
@@ -27,7 +28,6 @@ set(SOURCES
     src/fast_prng.cuh
 
     src/kernels/data_generator.cuh
-    src/kernels/kernel_pattern.cuh
 )
 
 add_executable(gpu_compressstore2 ${SOURCES})

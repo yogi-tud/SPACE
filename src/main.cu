@@ -14,6 +14,9 @@
 #include "fast_prng.cuh"
 #include "kernels/data_generator.cuh"
 
+#include "csv_loader.hpp"
+
+
 template <typename T>
 void cpu_buffer_print(T* h_buffer, uint32_t offset, uint32_t length)
 {
@@ -35,8 +38,7 @@ void gpu_buffer_print(T* d_buffer, uint32_t offset, uint32_t length)
     free(h_buffer);
 }
 
-int main()
-{
+int gen_dummy_data(){
     int cuda_dev_id = 0;
     CUDA_TRY(cudaSetDevice(cuda_dev_id));
 
@@ -80,4 +82,34 @@ int main()
 
     printf("done\n");
     return 0;
+}
+
+template<typename T>
+std::vector<uint8_t> gen_predicate(const std::vector<T>& col, bool (*predicate)(T value)){
+    std::vector<uint8_t> predicate_bitmask{};
+    predicate_bitmask.reserve(col.size() / 8);
+    auto it = col.begin();
+    for (int i = 0; i < col.size() / 8; i++) {
+        uint8_t acc = 0;
+        for (int j = 7; j >= 0; j--) {
+            if (it == col.end()) break;
+            if (predicate(*it++)) {
+                acc |= (1<<j);
+            }
+        }
+        predicate_bitmask.push_back(acc);
+    }
+    return predicate_bitmask;
+}
+
+int main()
+{
+    std::vector<float> col;
+    load_csv("../res/Arade_1.csv", {3}, col);
+    auto pred = gen_predicate(col, +[](float f){return f > 200;});
+    cpu_buffer_print(&pred[0], 0, pred.size());
+ 
+
+    return 0;
+   
 }
