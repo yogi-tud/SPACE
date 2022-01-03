@@ -17,7 +17,7 @@
 #include "utils.hpp"
 
 #include <src/cub_wraps.cuh>
-
+#include <src/kernels/kernel_3pass.cuh>
 
 
 int gen_dummy_data(){
@@ -66,6 +66,26 @@ int gen_dummy_data(){
     return 0;
 }
 
+template<typename T>
+float launch_3pass(cudaEvent_t start, cudaEvent_t end,  T* d_input, T* d_output, uint8_t* d_mask, uint32_t* d_pss_total, size_t length){
+    uint32_t chunk_length = 1024;
+    uint32_t chunk_count = length / chunk_length;
+    uint32_t* d_pss;
+    CUDA_TRY(cudaMalloc(&d_pss, chunk_count*sizeof(uint32_t)));
+    uint32_t* d_popc;
+    CUDA_TRY(cudaMalloc(&d_popc, chunk_count*sizeof(uint32_t)));
+    CUDA_TRY(cudaMemset(d_pss_total, 0x00, sizeof(uint32_t)));
+    float time = 0;
+    time += launch_3pass_popc_none(start, end, 0, 32, d_mask, d_pss, chunk_length, chunk_count);
+    time += launch_3pass_popc_none(start, end, 0, 32, d_mask, d_popc, chunk_length, chunk_count);
+    time += launch_cub_pss(0, start, end, d_pss, d_pss_total, chunk_count);
+    time += launch_3pass_proc_true(start, end, 18432, 1024, d_input, d_output, d_mask, d_pss, true, d_popc, chunk_length, chunk_count);
+
+    CUDA_TRY(cudaFree(d_pss));
+    CUDA_TRY(cudaFree(d_popc));
+    return time;
+}
+
 int main(int argc, char** argv)
 {
     //load data
@@ -82,7 +102,9 @@ int main(int argc, char** argv)
     cudaEvent_t start, end;
     CUDA_TRY(cudaEventCreate(&start));
     CUDA_TRY(cudaEventCreate(&end));
-    float time = launch_cub_flagged_biterator(start, end, d_input, d_output, d_mask, d_selected_out, col.size()); 
+    //float time = launch_cub_flagged_biterator(start, end, d_input, d_output, d_mask, d_selected_out, col.size()); 
+    float time = launch_3pass(start, end, d_input, d_output, d_mask, d_selected_out, col.size()); 
+
 
     //gen cpu side validation
     std::vector<float> validation;

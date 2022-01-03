@@ -1,6 +1,6 @@
 # convenient cuda clang support was added in 3.19
 cmake_minimum_required(VERSION 3.19)
-option(USE_CLANG ON "use clang instead of nvcc")
+option(USE_CLANG "use clang instead of nvcc" ON)
 
 if(${USE_CLANG})
     set(CMAKE_CUDA_COMPILER "clang++")
