@@ -30,6 +30,11 @@ set(INCLUDES
     .
 )
 
+set(PREFIX_INCLUDES
+    deps/cub
+    deps/thrust
+)
+
 set(SOURCES
     src/main.cu
 
@@ -52,3 +57,4 @@ endif()
 set_property(TARGET gpu_compressstore2 PROPERTY CUDA_ARCHITECTURES 75 61)
 
 target_include_directories(gpu_compressstore2 PRIVATE ${INCLUDES})
+target_include_directories(gpu_compressstore2 BEFORE PRIVATE ${INCLUDES})
