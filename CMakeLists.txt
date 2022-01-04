@@ -1,9 +1,9 @@
 # convenient cuda clang support was added in 3.19
 cmake_minimum_required(VERSION 3.19)
 option(USE_CLANG "use clang instead of nvcc" ON)
-option(CLANG_VERSION "specify clang version" "")
+set(CLANG_VERSION "" CACHE STRING "specify clang version")
 
-if (${CLANG_VERSION} STREQUAL "")
+if ("${CLANG_VERSION}" STREQUAL "")
 set(CLANG_VERSION_POSTFIX "")
 else()
 set(CLANG_VERSION_POSTFIX "-${CLANG_VERSION}")
@@ -68,5 +68,5 @@ endif()
 set_property(TARGET gpu_compressstore2 PROPERTY CUDA_ARCHITECTURES 75 61)
 
 target_include_directories(gpu_compressstore2 PRIVATE ${INCLUDES})
-target_include_directories(gpu_compressstore2 BEFORE PRIVATE ${INCLUDES})
+target_include_directories(gpu_compressstore2 BEFORE PRIVATE ${PREFIX_INCLUDES})
 add_dependencies(gpu_compressstore2 cub_fix)

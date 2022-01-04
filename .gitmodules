@@ -1,6 +1,8 @@
 [submodule "deps/cub"]
 	path = deps/cub
 	url = https://github.com/NVIDIA/cub
+    ignore = dirty
 [submodule "deps/thrust"]
 	path = deps/thrust
 	url = https://github.com/NVIDIA/thrust
+    
