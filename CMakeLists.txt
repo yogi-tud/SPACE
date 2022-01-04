@@ -1,10 +1,16 @@
 # convenient cuda clang support was added in 3.19
 cmake_minimum_required(VERSION 3.19)
 option(USE_CLANG "use clang instead of nvcc" ON)
+option(CLANG_VERSION "specify clang version" "")
 
+if (${CLANG_VERSION} STREQUAL "")
+set(CLANG_VERSION_POSTFIX "")
+else()
+set(CLANG_VERSION_POSTFIX "-${CLANG_VERSION}")
+endif()
 if(${USE_CLANG})
-    set(CMAKE_CUDA_COMPILER "clang++")
-    set(CMAKE_CXX_COMPILER "clang++")
+    set(CMAKE_CUDA_COMPILER "clang++${CLANG_VERSION_POSTFIX}")
+    set(CMAKE_CXX_COMPILER "clang++${CLANG_VERSION_POSTFIX}")
 
     # force c++20
     set(CMAKE_CXX_STANDARD 20)
@@ -48,7 +54,8 @@ set(SOURCES
 
 add_custom_target(
     cub_fix 
-    sed -i ../deps/cub/cub/iterator/tex_ref_input_iterator.cuh -e "s|\(^[^/]*\)words\[i\] = tex1Dfetch(ref, (tex_offset \* TEXTURE_MULTIPLE) + i);|\1//words[i] = tex1Dfetch(ref, (tex_offset * TEXTURE_MULTIPLE) + i);|"
+    sed -i ../deps/cub/cub/iterator/tex_ref_input_iterator.cuh -e "s|\\(^[^/]*\\)words\\[i\\] = tex1Dfetch(ref, (tex_offset \\* TEXTURE_MULTIPLE) + i);|\\1//words[i] = tex1Dfetch(ref, (tex_offset * TEXTURE_MULTIPLE) + i);|"
+    VERBATIM
 )
 add_executable(gpu_compressstore2 ${SOURCES})
 
