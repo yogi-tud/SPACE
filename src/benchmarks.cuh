@@ -42,8 +42,12 @@ struct intermediate_data {
         cub::DeviceSelect::Flagged(
             null, temp_storage_bytes_flagged, null, null, null, null,
             element_count);
-        cub_intermediate_size =
-            std::max(temp_storage_bytes_pss, temp_storage_bytes_flagged);
+        size_t temp_storage_bytes_exclusive_sum;
+        cub::DeviceScan::ExclusiveSum(
+            null, temp_storage_bytes_exclusive_sum, null, null, chunk_count);
+        cub_intermediate_size = std::max(
+            {temp_storage_bytes_pss, temp_storage_bytes_flagged,
+             temp_storage_bytes_exclusive_sum});
         CUDA_TRY(cudaMalloc(&d_cub_intermediate, cub_intermediate_size));
         CUDA_TRY(cudaMalloc(&d_pss, intermediate_size_3pass));
         CUDA_TRY(cudaMalloc(&d_pss2, intermediate_size_3pass));
@@ -69,7 +73,8 @@ struct intermediate_data {
     template <typename T>
     void prepare_buffers(size_t element_count, int chunk_length, T* d_output)
     {
-        CUDA_TRY(cudaMemset(d_out_count, 0, sizeof(*d_out_count)));
+        CUDA_TRY(cudaMemset(
+            d_out_count, 0, (max_stream_count + 1) * sizeof(*d_out_count)));
         CUDA_TRY(cudaMemset(d_output, 0, element_count * sizeof(T)));
         if (this->element_count >= element_count ||
             this->chunk_length >= chunk_length)
@@ -144,7 +149,8 @@ float bench3_3pass_streaming(
     size_t element_count, size_t chunk_length, int block_size, int grid_size,
     int stream_count = 2)
 {
-    id->prepare_buffers(element_count, chunk_length, d_output);
+    // TODO: make use of streaming parameters
+    id->prepare_buffers(0, 0, d_output);
     float time = 0;
     if (stream_count < 1) {
         error("stream_count must be >= 1");
@@ -234,6 +240,23 @@ float bench4_3pass_optimized_read_skipping_partial_pss(
     size_t element_count, size_t chunk_length, int block_size, int grid_size)
 {
     id->prepare_buffers(element_count, chunk_length, d_output);
+    float time = 0;
+    CUDA_TIME_FORCE_ENABLED(id->start, id->stop, 0, &time, {
+        launch_3pass_popc_none(
+            id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_mask,
+            id->d_popc, chunk_length, id->chunk_count);
+        cudaMemcpy(
+            id->d_pss, id->d_popc, id->chunk_count * sizeof(uint32_t),
+            cudaMemcpyDeviceToDevice);
+        launch_3pass_pss_gmem(
+            id->dummy_event_1, id->dummy_event_2, grid_size, block_size,
+            id->d_pss, id->chunk_count, id->d_out_count);
+        launch_3pass_proc_true(
+            id->dummy_event_1, id->dummy_event_2, grid_size, block_size,
+            d_input, d_output, d_mask, id->d_pss, false, id->d_popc,
+            chunk_length, id->chunk_count);
+    });
+    return time;
 }
 
 template <class T>
@@ -242,6 +265,26 @@ float bench5_3pass_optimized_read_skipping_two_phase_pss(
     size_t element_count, size_t chunk_length, int block_size, int grid_size)
 {
     id->prepare_buffers(element_count, chunk_length, d_output);
+    float time = 0;
+    CUDA_TIME_FORCE_ENABLED(id->start, id->stop, 0, &time, {
+        launch_3pass_popc_none(
+            id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_mask,
+            id->d_popc, chunk_length, id->chunk_count);
+        cudaMemcpy(
+            id->d_pss, id->d_popc, id->chunk_count * sizeof(uint32_t),
+            cudaMemcpyDeviceToDevice);
+        launch_3pass_pss_gmem(
+            id->dummy_event_1, id->dummy_event_2, grid_size, block_size,
+            id->d_pss, id->chunk_count, id->d_out_count);
+        launch_3pass_pss2_gmem(
+            id->dummy_event_1, id->dummy_event_2, grid_size, block_size,
+            id->d_pss, id->d_pss2, id->chunk_count);
+        launch_3pass_proc_true(
+            id->dummy_event_1, id->dummy_event_2, grid_size, block_size,
+            d_input, d_output, d_mask, id->d_pss2, true, id->d_popc,
+            chunk_length, id->chunk_count);
+    });
+    return time;
 }
 
 template <class T>
@@ -250,6 +293,27 @@ float bench6_3pass_optimized_read_skipping_cub_pss(
     size_t element_count, size_t chunk_length, int block_size, int grid_size)
 {
     id->prepare_buffers(element_count, chunk_length, d_output);
+    float time = 0;
+    CUDA_TIME_FORCE_ENABLED(id->start, id->stop, 0, &time, {
+        launch_3pass_popc_none(
+            id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_mask,
+            id->d_popc, chunk_length, id->chunk_count);
+        cudaMemcpy(
+            id->d_pss, id->d_popc, id->chunk_count * sizeof(uint32_t),
+            cudaMemcpyDeviceToDevice);
+
+        launch_3pass_pssskip(0, id->d_pss, id->d_out_count, id->chunk_count);
+        CUDA_TRY(cub::DeviceScan::ExclusiveSum(
+            id->d_cub_intermediate, id->cub_intermediate_size, id->d_pss,
+            id->d_pss2, id->chunk_count));
+        launch_3pass_pssskip(0, id->d_pss, id->d_out_count, id->chunk_count);
+
+        launch_3pass_proc_true(
+            id->dummy_event_1, id->dummy_event_2, grid_size, block_size,
+            d_input, d_output, d_mask, id->d_pss2, true, id->d_popc,
+            chunk_length, id->chunk_count);
+    });
+    return time;
 }
 
 template <class T>
@@ -269,7 +333,7 @@ float bench7_cub_flagged(
     return time;
 }
 
-void validate(
+bool validate(
     intermediate_data* id, float* d_validation, float* d_output,
     uint64_t out_length, uint64_t* failure_count = NULL)
 {
@@ -277,6 +341,6 @@ void validate(
     kernel_check_validation<<<64, 32>>>(
         d_validation, d_output, out_length, id->d_failure_count);
     auto fc = gpu_to_val(id->d_failure_count);
-    if (fc != 0) error("validation failure!");
     if (failure_count) *failure_count = fc;
+    return (fc == 0);
 }
