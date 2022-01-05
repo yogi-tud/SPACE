@@ -10,30 +10,26 @@
 // count: number of bytes to generate
 // selectivity: [0,1] chance for every bit to be a 1, default is 0
 __global__ void kernel_generate_mask_uniform(
-    uint8_t* d_buffer,
-    uint64_t count,
-    double selectivity)
+    uint8_t* d_buffer, uint64_t count, double selectivity)
 {
     uint64_t tid = blockIdx.x * blockDim.x + threadIdx.x;
     uint64_t gridstride = blockDim.x * gridDim.x;
 
     fast_prng rng(tid);
-    uint32_t p_adjusted = selectivity*UINT32_MAX;
+    uint32_t p_adjusted = selectivity * UINT32_MAX;
 
     for (uint64_t i = tid; i < count; i += gridstride) {
         uint8_t acc = 0;
         for (int j = 7; j >= 0; j--) {
             if (rng.rand() < p_adjusted) {
-                acc |= (1<<j);
+                acc |= (1 << j);
             }
         }
         d_buffer[i] = acc;
     }
 }
 
-__global__ void kernel_generate_mask_zipf(
-    uint8_t* d_buffer,
-    uint64_t count)
+__global__ void kernel_generate_mask_zipf(uint8_t* d_buffer, uint64_t count)
 {
     uint64_t tid = blockIdx.x * blockDim.x + threadIdx.x;
     uint64_t gridstride = blockDim.x * gridDim.x;
@@ -41,7 +37,7 @@ __global__ void kernel_generate_mask_zipf(
     fast_prng rng(tid);
     // probably r = a * (c * x)^-k
     // empirical:
-    uint64_t n = count*8;
+    uint64_t n = count * 8;
     double a = 1.2;
     double c = log10(static_cast<double>(n)) / static_cast<double>(n);
     double k = 1.43;
@@ -49,10 +45,11 @@ __global__ void kernel_generate_mask_zipf(
     for (uint64_t i = tid; i < count; i += gridstride) {
         uint8_t acc = 0;
         for (int j = 7; j >= 0; j--) {
-            double ev = a * (1 / (pow((c* (i*8+(7-j)) ), k)));
-            double rv = static_cast<double>(rng.rand())/static_cast<double>(UINT32_MAX);
+            double ev = a * (1 / (pow((c * (i * 8 + (7 - j))), k)));
+            double rv = static_cast<double>(rng.rand()) /
+                        static_cast<double>(UINT32_MAX);
             if (rv < ev) {
-                acc |= (1<<j);
+                acc |= (1 << j);
             }
         }
         d_buffer[i] = acc;
@@ -60,29 +57,30 @@ __global__ void kernel_generate_mask_zipf(
 }
 
 __global__ void kernel_generate_mask_burst(
-    uint8_t* d_buffer,
-    uint64_t count,
-    double segment_sizer)
+    uint8_t* d_buffer, uint64_t count, double segment_sizer)
 {
     uint64_t tid = blockIdx.x * blockDim.x + threadIdx.x;
     uint64_t gridstride = blockDim.x * gridDim.x;
 
     fast_prng rng(tid);
-    // segment_sizer sets pseudo segment distance, can be modified by up to +/-50% in size and is randomly 1/0
+    // segment_sizer sets pseudo segment distance, can be modified by up to
+    // +/-50% in size and is randomly 1/0
     double segment = static_cast<double>(count) * segment_sizer;
-    double rv = static_cast<double>(rng.rand())/static_cast<double>(UINT32_MAX);
-    uint64_t current_length = static_cast<uint64_t>(segment * (rv+0.5));
+    double rv =
+        static_cast<double>(rng.rand()) / static_cast<double>(UINT32_MAX);
+    uint64_t current_length = static_cast<uint64_t>(segment * (rv + 0.5));
     bool is_one = false;
 
     for (uint64_t i = tid; i < count; i += gridstride) {
         uint8_t acc = 0;
         for (int j = 7; j >= 0; j--) {
             if (is_one) {
-                acc |= (1<<j);
+                acc |= (1 << j);
             }
             if (--current_length <= 0) {
-                rv = static_cast<double>(rng.rand())/static_cast<double>(UINT32_MAX);
-                current_length = static_cast<uint64_t>(segment * (rv+0.5));
+                rv = static_cast<double>(rng.rand()) /
+                     static_cast<double>(UINT32_MAX);
+                current_length = static_cast<uint64_t>(segment * (rv + 0.5));
                 is_one = !is_one;
             }
         }
@@ -90,10 +88,8 @@ __global__ void kernel_generate_mask_burst(
     }
 }
 
-__global__ void kernel_generate_mask_offset(
-    uint8_t* d_buffer,
-    uint64_t count,
-    int64_t spacing)
+__global__ void
+kernel_generate_mask_offset(uint8_t* d_buffer, uint64_t count, int64_t spacing)
 {
     uint64_t tid = blockIdx.x * blockDim.x + threadIdx.x;
     uint64_t gridstride = blockDim.x * gridDim.x;
@@ -105,8 +101,8 @@ __global__ void kernel_generate_mask_offset(
     for (uint64_t i = tid; i < count; i += gridstride) {
         uint8_t acc = 0;
         for (int j = 7; j >= 0; j--) {
-            if ((i*8+(7-j)) % spacing == 0) {
-                acc |= (1<<j);
+            if ((i * 8 + (7 - j)) % spacing == 0) {
+                acc |= (1 << j);
             }
         }
         d_buffer[i] = (invert ? ~acc : acc);
@@ -114,9 +110,7 @@ __global__ void kernel_generate_mask_offset(
 }
 
 __global__ void kernel_generate_mask_pattern(
-    uint8_t* d_buffer,
-    uint64_t count,
-    uint32_t pattern = 0,
+    uint8_t* d_buffer, uint64_t count, uint32_t pattern = 0,
     uint32_t pattern_length = 0)
 {
     uint64_t tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -125,8 +119,8 @@ __global__ void kernel_generate_mask_pattern(
     for (uint64_t i = tid; i < count; i += gridstride) {
         uint8_t acc = 0;
         for (int j = 7; j >= 0; j--) {
-            if ((pattern>>((i*8+j)%pattern_length))&0b1) {
-                acc |= (1<<j);
+            if ((pattern >> ((i * 8 + j) % pattern_length)) & 0b1) {
+                acc |= (1 << j);
             }
         }
         d_buffer[i] = acc;
@@ -135,10 +129,7 @@ __global__ void kernel_generate_mask_pattern(
 
 template <typename T>
 __global__ void kernel_check_validation(
-    T* d_validation,
-    T* d_data,
-    uint64_t count,
-    uint64_t* d_failure_count)
+    T* d_validation, T* d_data, uint64_t count, uint64_t* d_failure_count)
 {
     uint64_t tid = blockIdx.x * blockDim.x + threadIdx.x;
     uint64_t gridstride = blockDim.x * gridDim.x;
@@ -150,11 +141,17 @@ __global__ void kernel_check_validation(
             failures++;
         }
     }
-    #if defined(__CUDACC__)
-        atomicAdd(reinterpret_cast<unsigned long long int *>(d_failure_count), failures);
-    #else
-     __ullAtomicAdd(reinterpret_cast<unsigned long long int *>(d_failure_count), failures);
-    #endif
+    if (d_failure_count) {
+#if defined(__CUDACC__)
+        atomicAdd(
+            reinterpret_cast<unsigned long long int*>(d_failure_count),
+            failures);
+#else
+        __ullAtomicAdd(
+            reinterpret_cast<unsigned long long int*>(d_failure_count),
+            failures);
+#endif
+    }
 }
 
 #endif
