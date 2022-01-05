@@ -27,7 +27,7 @@ struct intermediate_data {
     {
         this->chunk_length = chunk_length;
         this->element_count = element_count;
-        this->chunk_count = element_count / chunk_length;
+        this->chunk_count = ceildiv(element_count, chunk_length);
         this->max_stream_count = max_stream_count;
         uint8_t* null = (uint8_t*)NULL;
         size_t intermediate_size_3pass = chunk_count * sizeof(uint32_t);
@@ -196,6 +196,7 @@ float bench3_3pass_streaming(
                 id->d_pss + chunks_per_stream * i, chunk_length32,
                 chunks_per_stream);
             // launch pss for i
+            //TODO these temporary storage allocations are timed
             launch_cub_pss(
                 id->streams[i], 0, 0, id->d_pss + chunks_per_stream * i,
                 id->d_out_count + i + 1, chunks_per_stream);

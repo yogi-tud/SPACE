@@ -1,6 +1,8 @@
 #pragma once
 #include <vector>
 #include <cstdint>
+#include <iostream>
+#include <stdio.h>
 #include <src/kernels/data_generator.cuh>
 
 void error(const char* error)
@@ -103,4 +105,20 @@ std::vector<uint8_t> gen_predicate(
     }
     if (one_count) *one_count = one_count_loc;
     return predicate_bitmask;
+}
+
+template <typename T>
+T ceil2mult(T val, typename dont_deduce_t<T>::type mult)
+{
+    T rem = val % mult;
+    if (rem) return val+mult-rem;
+    return val;
+}
+
+template <typename T>
+T ceildiv(T div, typename dont_deduce_t<T>::type divisor)
+{
+    T rem = div / divisor;
+    if (rem*divisor == div) return rem;
+    return rem+1;
 }
