@@ -71,7 +71,7 @@ template <typename T> T gpu_to_val(T* d_val)
 template <typename T>
 void val_to_gpu(T* d_val, typename dont_deduce_t<T>::type val)
 {
-    CUDA_TRY(cudaMemcpy(&d_val, &val, sizeof(T), cudaMemcpyDeviceToHost));
+    CUDA_TRY(cudaMemcpy(d_val, &val, sizeof(T), cudaMemcpyHostToDevice));
 }
 
 template <typename T> T* alloc_gpu(size_t length)
