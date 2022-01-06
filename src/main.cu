@@ -64,7 +64,7 @@ int main(int argc, char** argv)
 
     // run benchmark
     intermediate_data id{col.size(), 1024, 8};
-    const int iterations = 100;
+    const int iterations = 1;
 
     float time_3pass = 0;
     float time_cub = 0;
@@ -95,6 +95,9 @@ int main(int argc, char** argv)
         for (int i = 0; i < benchs.size(); i++) {
             timings[i] += benchs[i].second();
             size_t failure_count;
+            // gpu_buffer_print(d_output, 0, 9);
+            // puts("pss:");
+            // gpu_buffer_print(id.d_popc, 0, 1);
             if (!validate(&id, d_validation, d_output, out_length, &failure_count)) {
                 fprintf(stderr, "validation failure in bench %s, run %i: %zu failures\n", benchs[i].first.c_str(), it, failure_count);
                 // exit(EXIT_FAILURE);

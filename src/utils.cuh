@@ -76,21 +76,21 @@ template <typename T> T* alloc_gpu(size_t length)
     return buff;
 }
 
-template <typename T> T ceil2mult(T val, typename dont_deduce_t<T>::type mult)
+template <typename T> __device__ __host__ T ceil2mult(T val, typename dont_deduce_t<T>::type mult)
 {
     T rem = val % mult;
     if (rem) return val + mult - rem;
     return val;
 }
 
-template <typename T> T ceildiv(T div, typename dont_deduce_t<T>::type divisor)
+template <typename T> __device__ __host__ T ceildiv(T div, typename dont_deduce_t<T>::type divisor)
 {
     T rem = div / divisor;
     if (rem * divisor == div) return rem;
     return rem + 1;
 }
 
-template <typename T> T overlap(T value, typename dont_deduce_t<T>::type align)
+template <typename T> __device__ __host__ T overlap(T value, typename dont_deduce_t<T>::type align)
 {
     T rem = value % align;
     if (rem) return align - rem;

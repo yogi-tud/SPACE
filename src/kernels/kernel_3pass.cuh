@@ -9,8 +9,7 @@
 
 #define CUDA_WARP_SIZE 32
 // chunk_length32 = 32
-// chunk_count = 1
-// element_count = 48
+// element_count = 8
 //  idx 0
 __global__ void kernel_3pass_popc_none_monolithic(uint8_t* mask, uint32_t* pss, uint32_t chunk_length32, uint32_t element_count)
 {
@@ -19,7 +18,7 @@ __global__ void kernel_3pass_popc_none_monolithic(uint8_t* mask, uint32_t* pss, 
     size_t bit_idx = idx * 32;
     if (bit_idx > element_count) return;
     // assuming chunk_length to be multiple of 32
-    size_t remaining_bytes_for_grid = element_count - bit_idx;
+    size_t remaining_bytes_for_grid = (element_count - bit_idx) / 8;
     size_t bytes_to_process = chunk_length32 * 4;
     if (remaining_bytes_for_grid < bytes_to_process) {
         bytes_to_process = remaining_bytes_for_grid;
@@ -29,7 +28,7 @@ __global__ void kernel_3pass_popc_none_monolithic(uint8_t* mask, uint32_t* pss, 
     for (; i < bytes_to_process / 4 * 4; i += 4) {
         popcount += __popc(*reinterpret_cast<uint32_t*>(mask + idx + i));
     }
-    if (i < bytes_to_process) {
+    if (i < bytes_to_process / 2 * 2) {
         popcount += __popc(*reinterpret_cast<uint16_t*>(mask + idx + i));
         i += 2;
     }
@@ -241,17 +240,18 @@ __global__ void kernel_3pass_proc_true_striding(
     uint32_t* pss,
     uint32_t* popc,
     uint32_t chunk_length,
-    uint32_t chunk_count,
+    uint32_t element_count,
     uint32_t chunk_count_p2,
     uint32_t* offset)
 {
+    uint32_t mask_byte_count = element_count / 8;
+    uint32_t chunk_count = ceildiv(element_count, chunk_length);
     if (offset != NULL) {
         output += *offset;
     }
     constexpr uint32_t WARPS_PER_BLOCK = BLOCK_DIM / CUDA_WARP_SIZE;
     __shared__ uint32_t smem[BLOCK_DIM];
     __shared__ uint32_t smem_out_idx[WARPS_PER_BLOCK];
-    uint32_t elem_count = chunk_length * chunk_count;
     uint32_t warp_remainder = WARPS_PER_BLOCK;
     while (warp_remainder % 2 == 0) {
         warp_remainder /= 2;
@@ -260,19 +260,19 @@ __global__ void kernel_3pass_proc_true_striding(
         warp_remainder = 1;
     }
     uint32_t grid_stride = chunk_length * warp_remainder;
-    while (grid_stride % (CUDA_WARP_SIZE * BLOCK_DIM) != 0 || grid_stride * gridDim.x < elem_count) {
+    while (grid_stride % (CUDA_WARP_SIZE * BLOCK_DIM) != 0 || grid_stride * gridDim.x < element_count) {
         grid_stride *= 2;
     }
     uint32_t warp_stride = grid_stride / WARPS_PER_BLOCK;
     uint32_t warp_offset = threadIdx.x % CUDA_WARP_SIZE;
     uint32_t warp_index = threadIdx.x / CUDA_WARP_SIZE;
     uint32_t base_idx = blockIdx.x * grid_stride + warp_index * warp_stride;
-    if (base_idx >= elem_count) { // FRAIL
+    if (base_idx >= element_count) { // FRAIL
         return;
     }
     uint32_t stop_idx = base_idx + warp_stride;
-    if (stop_idx > elem_count) {
-        stop_idx = elem_count;
+    if (stop_idx > element_count) {
+        stop_idx = element_count;
     }
     uint32_t stride = 1024; // BLOCK_DIM * 32; // 1024
     if (warp_offset == 0) {
@@ -297,8 +297,18 @@ __global__ void kernel_3pass_proc_true_striding(
             continue;
         }
         uint32_t mask_idx = base_idx / 8 + warp_offset * 4;
-        if (mask_idx < elem_count / 8) {
-            uchar4 ucx = *reinterpret_cast<uchar4*>(mask + mask_idx);
+        if (mask_idx < mask_byte_count) {
+            uchar4 ucx = {0, 0, 0, 0};
+            if (mask_idx + 4 > mask_byte_count) {
+                switch (mask_byte_count - mask_idx) {
+                    case 3: ucx.z = *(mask + mask_idx + 2);
+                    case 2: ucx.y = *(mask + mask_idx + 1);
+                    case 1: ucx.x = *(mask + mask_idx);
+                }
+            }
+            else {
+                ucx = *reinterpret_cast<uchar4*>(mask + mask_idx);
+            }
             uchar4 uix{ucx.w, ucx.z, ucx.y, ucx.x};
             smem[threadIdx.x] = *reinterpret_cast<uint32_t*>(&uix);
         }
@@ -333,7 +343,7 @@ void switch_3pass_proc_true_striding(
     uint32_t* pss,
     uint32_t* popc,
     uint32_t chunk_length,
-    uint32_t chunk_count,
+    uint32_t element_count,
     uint32_t chunk_count_p2,
     uint32_t* offset)
 {
@@ -341,27 +351,27 @@ void switch_3pass_proc_true_striding(
         default:
         case 32: {
             kernel_3pass_proc_true_striding<32, T, complete_pss>
-                <<<block_count, 32, 0, stream>>>(input, output, mask, pss, popc, chunk_length, chunk_count, chunk_count_p2, offset);
+                <<<block_count, 32, 0, stream>>>(input, output, mask, pss, popc, chunk_length, element_count, chunk_count_p2, offset);
         } break;
         case 64: {
             kernel_3pass_proc_true_striding<64, T, complete_pss>
-                <<<block_count, 64, 0, stream>>>(input, output, mask, pss, popc, chunk_length, chunk_count, chunk_count_p2, offset);
+                <<<block_count, 64, 0, stream>>>(input, output, mask, pss, popc, chunk_length, element_count, chunk_count_p2, offset);
         } break;
         case 128: {
             kernel_3pass_proc_true_striding<128, T, complete_pss>
-                <<<block_count, 128, 0, stream>>>(input, output, mask, pss, popc, chunk_length, chunk_count, chunk_count_p2, offset);
+                <<<block_count, 128, 0, stream>>>(input, output, mask, pss, popc, chunk_length, element_count, chunk_count_p2, offset);
         } break;
         case 256: {
             kernel_3pass_proc_true_striding<256, T, complete_pss>
-                <<<block_count, 256, 0, stream>>>(input, output, mask, pss, popc, chunk_length, chunk_count, chunk_count_p2, offset);
+                <<<block_count, 256, 0, stream>>>(input, output, mask, pss, popc, chunk_length, element_count, chunk_count_p2, offset);
         } break;
         case 512: {
             kernel_3pass_proc_true_striding<512, T, complete_pss>
-                <<<block_count, 512, 0, stream>>>(input, output, mask, pss, popc, chunk_length, chunk_count, chunk_count_p2, offset);
+                <<<block_count, 512, 0, stream>>>(input, output, mask, pss, popc, chunk_length, element_count, chunk_count_p2, offset);
         } break;
         case 1024: {
             kernel_3pass_proc_true_striding<1024, T, complete_pss>
-                <<<block_count, 1024, 0, stream>>>(input, output, mask, pss, popc, chunk_length, chunk_count, chunk_count_p2, offset);
+                <<<block_count, 1024, 0, stream>>>(input, output, mask, pss, popc, chunk_length, element_count, chunk_count_p2, offset);
         } break;
     }
 }
@@ -380,8 +390,9 @@ float launch_3pass_proc_true(
     bool full_pss,
     uint32_t* d_popc,
     uint32_t chunk_length,
-    uint32_t chunk_count)
+    uint32_t element_count)
 {
+    uint32_t chunk_count = ceildiv(element_count, chunk_length);
     float time;
     uint32_t chunk_count_p2 = 1;
     while (chunk_count_p2 < chunk_count) {
@@ -397,13 +408,13 @@ float launch_3pass_proc_true(
         CUDA_TIME(
             ce_start, ce_stop, 0, &time,
             (switch_3pass_proc_true_striding<T, true>(
-                blockcount, threadcount, 0, d_input, d_output, d_mask, d_pss, d_popc, chunk_length, chunk_count, chunk_count_p2, NULL)));
+                blockcount, threadcount, 0, d_input, d_output, d_mask, d_pss, d_popc, chunk_length, element_count, chunk_count_p2, NULL)));
     }
     else {
         CUDA_TIME(
             ce_start, ce_stop, 0, &time,
             (switch_3pass_proc_true_striding<T, false>(
-                blockcount, threadcount, 0, d_input, d_output, d_mask, d_pss, d_popc, chunk_length, chunk_count, chunk_count_p2, NULL)));
+                blockcount, threadcount, 0, d_input, d_output, d_mask, d_pss, d_popc, chunk_length, element_count, chunk_count_p2, NULL)));
     }
     return time;
 }
