@@ -252,7 +252,7 @@ __global__ void kernel_3pass_proc_true_striding(
     uint32_t warp_offset = threadIdx.x % CUDA_WARP_SIZE;
     uint32_t warp_index = threadIdx.x / CUDA_WARP_SIZE;
     uint32_t base_idx = blockIdx.x * grid_stride + warp_index * warp_stride;
-    if (base_idx > elem_count) {
+    if (base_idx >= elem_count) { // FRAIL
         return;
     }
     uint32_t stop_idx = base_idx + warp_stride;

@@ -63,9 +63,8 @@ struct intermediate_data {
     template <typename T> void prepare_buffers(size_t element_count, int chunk_length, T* d_output, uint8_t* d_mask)
     {
         // make sure unused bits in bitmask are 0
-        int used_bits = element_count % 8;
-        int unused_bits = used_bits ? 8 - used_bits : 0;
-        uint8_t* last_mask_byte_ptr = d_mask + overlap(element_count, 8);
+        int unused_bits = overlap(element_count, 8);
+        uint8_t* last_mask_byte_ptr = d_mask + element_count / 8;
         uint8_t last_mask_byte = gpu_to_val(last_mask_byte_ptr);
         last_mask_byte >>= unused_bits;
         last_mask_byte <<= unused_bits;
@@ -195,12 +194,14 @@ float bench3_3pass_streaming(
         }
 
         for (int i = 0; i < stream_count; i++) {
+            bool ls = (i == stream_count - 1);
+            uint64_t chunks_to_process = ls ? chunks_for_last_stream : chunks_per_stream;
             // launch popc for i
             kernel_3pass_popc_none_monolithic<<<popc1_blockcount, popc1_threadcount, 0, id->streams[i]>>>(
-                d_mask + mask_bytes_per_stream * i, id->d_pss + chunks_per_stream * i, chunk_length32, chunks_per_stream);
+                d_mask + mask_bytes_per_stream * i, id->d_pss + chunks_per_stream * i, chunk_length32, chunks_to_process);
             // launch pss for i
             // TODO these temporary storage allocations are timed
-            launch_cub_pss(id->streams[i], 0, 0, id->d_pss + chunks_per_stream * i, id->d_out_count + i + 1, chunks_per_stream);
+            launch_cub_pss(id->streams[i], 0, 0, id->d_pss + chunks_per_stream * i, id->d_out_count + i + 1, chunks_to_process);
             // if i > 0: launch extra: add previous d->out_count to own output
             if (i > 0) {
                 launch_streaming_add_pss_totals(id->streams[i], id->d_out_count + i - 1, id->d_out_count + i);
@@ -209,7 +210,8 @@ float bench3_3pass_streaming(
             CUDA_TRY(cudaEventRecord(id->stream_events[i], id->streams[i]));
             // launch optimization popc 1024 for i
             kernel_3pass_popc_none_monolithic<<<popc2_blockcount, popc2_threadcount, 0, id->streams[i]>>>(
-                d_mask + mask_bytes_per_stream * i, id->d_popc + skip_blocks_per_stream * i, 1024 / 32, skip_blocks_per_stream);
+                d_mask + mask_bytes_per_stream * i, id->d_popc + skip_blocks_per_stream * i, skip_block_size / 32,
+                ls ? skip_blocks_for_last_stream : skip_blocks_per_stream);
             // if i > 0: wait for event i-1
             if (i > 0) {
                 CUDA_TRY(cudaStreamWaitEvent(id->streams[i], id->stream_events[i - 1]));
@@ -219,7 +221,7 @@ float bench3_3pass_streaming(
 
             switch_3pass_proc_true_striding<T, true>(
                 proc_blockcount, proc_threadcount, id->streams[i], d_input + elements_per_stream * i, d_output, d_mask + mask_bytes_per_stream * i,
-                id->d_pss + chunks_per_stream * i, id->d_popc + skip_blocks_per_stream * i, chunk_length, chunks_per_stream, chunk_count_p2,
+                id->d_pss + chunks_per_stream * i, id->d_popc + skip_blocks_per_stream * i, chunk_length, chunks_to_process, chunk_count_p2,
                 id->d_out_count + i);
         }
 

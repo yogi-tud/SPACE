@@ -48,8 +48,7 @@ template <typename T> T* vector_to_gpu(const std::vector<T>& vec)
 template <typename T> std::vector<T> gpu_to_vector(T* buff, size_t length)
 {
     std::vector<T> vec;
-    const size_t size = length * sizeof(T);
-    vec.resize(size);
+    vec.resize(length);
     CUDA_TRY(cudaMemcpy(&vec[0], buff, length * sizeof(T), cudaMemcpyDeviceToHost));
     return vec;
 }
@@ -77,27 +76,6 @@ template <typename T> T* alloc_gpu(size_t length)
     return buff;
 }
 
-template <typename T> std::vector<uint8_t> gen_predicate(const std::vector<T>& col, bool (*predicate)(T value), size_t* one_count = NULL)
-{
-    std::vector<uint8_t> predicate_bitmask{};
-    predicate_bitmask.reserve(col.size() / 8);
-    auto it = col.begin();
-    size_t one_count_loc = 0;
-    for (int i = 0; i < col.size() / 8; i++) {
-        uint8_t acc = 0;
-        for (int j = 7; j >= 0; j--) {
-            if (it == col.end()) break;
-            if (predicate(*it++)) {
-                acc |= (1 << j);
-                one_count_loc++;
-            }
-        }
-        predicate_bitmask.push_back(acc);
-    }
-    if (one_count) *one_count = one_count_loc;
-    return predicate_bitmask;
-}
-
 template <typename T> T ceil2mult(T val, typename dont_deduce_t<T>::type mult)
 {
     T rem = val % mult;
@@ -117,4 +95,26 @@ template <typename T> T overlap(T value, typename dont_deduce_t<T>::type align)
     T rem = value % align;
     if (rem) return align - rem;
     return 0;
+}
+
+template <typename T> std::vector<uint8_t> gen_predicate(const std::vector<T>& col, bool (*predicate)(T value), size_t* one_count = NULL)
+{
+    std::vector<uint8_t> predicate_bitmask{};
+    size_t mask_bytes = ceildiv(col.size(), 8);
+    predicate_bitmask.reserve(mask_bytes);
+    auto it = col.begin();
+    size_t one_count_loc = 0;
+    for (int i = 0; i < mask_bytes; i++) {
+        uint8_t acc = 0;
+        for (int j = 7; j >= 0; j--) {
+            if (it == col.end()) break;
+            if (predicate(*it++)) {
+                acc |= (1 << j);
+                one_count_loc++;
+            }
+        }
+        predicate_bitmask.push_back(acc);
+    }
+    if (one_count) *one_count = one_count_loc;
+    return predicate_bitmask;
 }

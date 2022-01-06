@@ -51,6 +51,7 @@ template <> struct std::iterator_traits<bitstream_iterator> {
 
 float launch_cub_pss(cudaStream_t stream, cudaEvent_t ce_start, cudaEvent_t ce_stop, uint32_t* d_pss, uint32_t* d_pss_total, uint32_t chunk_count)
 {
+    if (!chunk_count) return 0;
     // use cub pss for now
     launch_3pass_pssskip(stream, d_pss, d_pss_total, chunk_count);
     uint32_t* d_pss_tmp;
