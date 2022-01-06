@@ -28,7 +28,8 @@ int main(int argc, char** argv)
     }
     int iterations = 100;
     if (argc > 3) {
-        iterations = atoi(argv[1]);
+        iterations = atoi(argv[3]);
+        if (iterations < 1) iterations = 1;
         printf("setting iterations numer to %i\n", iterations);
     }
     // load data
