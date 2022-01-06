@@ -87,7 +87,8 @@ float launch_3pass_popc_none(
     }
     else {
         CUDA_TIME(
-            ce_start, ce_stop, 0, &time, (kernel_3pass_popc_none_striding<<<blockcount, threadcount>>>(d_mask, d_pss, chunk_length32, chunk_count)));
+            ce_start, ce_stop, 0, &time,
+            (kernel_3pass_popc_none_striding<<<blockcount, threadcount>>>(d_mask, d_pss, chunk_length32, element_count)));
     }
     return time;
 }

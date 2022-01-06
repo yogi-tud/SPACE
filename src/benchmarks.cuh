@@ -153,80 +153,80 @@ float bench3_3pass_streaming(
     }
     if (stream_count != p2_sc) error("stream_count must be a power of 2");
 
-    // CUDA_TIME_FORCE_ENABLED(id->start, id->stop, 0, &time, {
-    CUDA_TRY(cudaMemset(id->d_out_count, 0x00, sizeof(uint32_t) * (stream_count + 1)));
+    CUDA_TIME_FORCE_ENABLED(id->start, id->stop, 0, &time, {
+        CUDA_TRY(cudaMemset(id->d_out_count, 0x00, sizeof(uint32_t) * (stream_count + 1)));
 
-    const uint64_t skip_block_size = 1024;
-    const uint64_t minimum_stream_alignment = std::max(skip_block_size, chunk_length);
-    uint64_t unit_count = ceildiv(element_count, minimum_stream_alignment);
-    uint64_t units_per_stream = unit_count / stream_count;
-    uint64_t units_for_last_stream = unit_count - units_per_stream * (stream_count - 1);
+        const uint64_t skip_block_size = 1024;
+        const uint64_t minimum_stream_alignment = std::max(skip_block_size, chunk_length);
+        uint64_t unit_count = ceildiv(element_count, minimum_stream_alignment);
+        uint64_t units_per_stream = unit_count / stream_count;
+        uint64_t units_for_last_stream = unit_count - units_per_stream * (stream_count - 1);
 
-    uint64_t skip_blocks_per_unit = minimum_stream_alignment / skip_block_size;
-    uint64_t skip_block_count = unit_count * skip_blocks_per_unit;
-    uint64_t skip_blocks_per_stream = units_per_stream * skip_blocks_per_unit;
-    uint64_t skip_blocks_for_last_stream = units_for_last_stream * skip_blocks_per_unit;
+        uint64_t skip_blocks_per_unit = minimum_stream_alignment / skip_block_size;
+        uint64_t skip_block_count = unit_count * skip_blocks_per_unit;
+        uint64_t skip_blocks_per_stream = units_per_stream * skip_blocks_per_unit;
+        uint64_t skip_blocks_for_last_stream = units_for_last_stream * skip_blocks_per_unit;
 
-    uint64_t chunks_per_unit = minimum_stream_alignment / chunk_length;
-    uint64_t chunk_count = unit_count * chunks_per_unit;
-    uint64_t chunks_per_stream = units_per_stream * chunks_per_unit;
-    uint64_t chunks_for_last_stream = units_for_last_stream * chunks_per_unit;
+        uint64_t chunks_per_unit = minimum_stream_alignment / chunk_length;
+        uint64_t chunk_count = unit_count * chunks_per_unit;
+        uint64_t chunks_per_stream = units_per_stream * chunks_per_unit;
+        uint64_t chunks_for_last_stream = units_for_last_stream * chunks_per_unit;
 
-    uint64_t elements_per_stream = units_per_stream * minimum_stream_alignment;
-    uint64_t elements_for_last_stream = element_count - units_per_stream * (stream_count - 1) * minimum_stream_alignment;
-    uint64_t mask_bytes_per_stream = elements_per_stream / 8;
-    uint64_t mask_bytes_for_last_stream = elements_for_last_stream / 8;
+        uint64_t elements_per_stream = units_per_stream * minimum_stream_alignment;
+        uint64_t elements_for_last_stream = element_count - units_per_stream * (stream_count - 1) * minimum_stream_alignment;
+        uint64_t mask_bytes_per_stream = elements_per_stream / 8;
+        uint64_t mask_bytes_for_last_stream = elements_for_last_stream / 8;
 
-    uint32_t chunk_count_p2 = 1;
-    while (chunk_count_p2 < chunks_per_stream) {
-        chunk_count_p2 *= 2;
-    }
-
-    uint32_t chunk_length32 = chunk_length / 32;
-    int popc1_threadcount = block_size;
-    int popc1_blockcount = grid_size;
-    int popc2_threadcount = block_size;
-    int popc2_blockcount = grid_size;
-    const int proc_threadcount = block_size;
-    int proc_blockcount = grid_size;
-    if (proc_blockcount < 1) {
-        proc_blockcount = 1;
-    }
-
-    for (int i = 0; i < stream_count; i++) {
-        bool ls = (i == stream_count - 1);
-        uint64_t chunks_to_process = ls ? chunks_for_last_stream : chunks_per_stream;
-        uint64_t elements_to_process = ls ? elements_for_last_stream : elements_per_stream;
-        // launch popc for i
-        kernel_3pass_popc_none_monolithic<<<popc1_blockcount, popc1_threadcount, 0, id->streams[i]>>>(
-            d_mask + mask_bytes_per_stream * i, id->d_pss + chunks_per_stream * i, chunk_length32, elements_to_process);
-        // launch pss for i
-        // TODO these temporary storage allocations are timed
-        launch_cub_pss(id->streams[i], 0, 0, id->d_pss + chunks_per_stream * i, id->d_out_count + i + 1, chunks_to_process);
-        // if i > 0: launch extra: add previous d->out_count to own output
-        if (i > 0) {
-            launch_streaming_add_pss_totals(id->streams[i], id->d_out_count + i - 1, id->d_out_count + i);
+        uint32_t chunk_count_p2 = 1;
+        while (chunk_count_p2 < chunks_per_stream) {
+            chunk_count_p2 *= 2;
         }
-        // record event i
-        CUDA_TRY(cudaEventRecord(id->stream_events[i], id->streams[i]));
-        // launch optimization popc 1024 for i
-        kernel_3pass_popc_none_monolithic<<<popc2_blockcount, popc2_threadcount, 0, id->streams[i]>>>(
-            d_mask + mask_bytes_per_stream * i, id->d_popc + skip_blocks_per_stream * i, skip_block_size / 32, elements_to_process);
-        // if i > 0: wait for event i-1
-        if (i > 0) {
-            CUDA_TRY(cudaStreamWaitEvent(id->streams[i], id->stream_events[i - 1]));
+
+        uint32_t chunk_length32 = chunk_length / 32;
+        int popc1_threadcount = block_size;
+        int popc1_blockcount = grid_size;
+        int popc2_threadcount = block_size;
+        int popc2_blockcount = grid_size;
+        const int proc_threadcount = block_size;
+        int proc_blockcount = grid_size;
+        if (proc_blockcount < 1) {
+            proc_blockcount = 1;
         }
-        // launch optimized writeout proc for i using  d->out_count at i as
-        // offset from output
 
-        switch_3pass_proc_true_striding<T, true>(
-            proc_blockcount, proc_threadcount, id->streams[i], d_input + elements_per_stream * i, d_output, d_mask + mask_bytes_per_stream * i,
-            id->d_pss + chunks_per_stream * i, id->d_popc + skip_blocks_per_stream * i, chunk_length, elements_to_process, chunk_count_p2,
-            id->d_out_count + i);
-    }
+        for (int i = 0; i < stream_count; i++) {
+            bool ls = (i == stream_count - 1);
+            uint64_t chunks_to_process = ls ? chunks_for_last_stream : chunks_per_stream;
+            uint64_t elements_to_process = ls ? elements_for_last_stream : elements_per_stream;
+            // launch popc for i
+            kernel_3pass_popc_none_monolithic<<<popc1_blockcount, popc1_threadcount, 0, id->streams[i]>>>(
+                d_mask + mask_bytes_per_stream * i, id->d_pss + chunks_per_stream * i, chunk_length32, elements_to_process);
+            // launch pss for i
+            // TODO these temporary storage allocations are timed
+            launch_cub_pss(id->streams[i], 0, 0, id->d_pss + chunks_per_stream * i, id->d_out_count + i + 1, chunks_to_process);
+            // if i > 0: launch extra: add previous d->out_count to own output
+            if (i > 0) {
+                launch_streaming_add_pss_totals(id->streams[i], id->d_out_count + i - 1, id->d_out_count + i);
+            }
+            // record event i
+            CUDA_TRY(cudaEventRecord(id->stream_events[i], id->streams[i]));
+            // launch optimization popc 1024 for i
+            kernel_3pass_popc_none_monolithic<<<popc2_blockcount, popc2_threadcount, 0, id->streams[i]>>>(
+                d_mask + mask_bytes_per_stream * i, id->d_popc + skip_blocks_per_stream * i, skip_block_size / 32, elements_to_process);
+            // if i > 0: wait for event i-1
+            if (i > 0) {
+                CUDA_TRY(cudaStreamWaitEvent(id->streams[i], id->stream_events[i - 1]));
+            }
+            // launch optimized writeout proc for i using  d->out_count at i as
+            // offset from output
 
-    CUDA_TRY(cudaDeviceSynchronize());
-    // });
+            switch_3pass_proc_true_striding<T, true>(
+                proc_blockcount, proc_threadcount, id->streams[i], d_input + elements_per_stream * i, d_output, d_mask + mask_bytes_per_stream * i,
+                id->d_pss + chunks_per_stream * i, id->d_popc + skip_blocks_per_stream * i, chunk_length, elements_to_process, chunk_count_p2,
+                id->d_out_count + i);
+        }
+
+        CUDA_TRY(cudaDeviceSynchronize());
+    });
     return time;
 }
 
@@ -272,7 +272,7 @@ float bench6_3pass_optimized_read_skipping_cub_pss(
     id->prepare_buffers(element_count, chunk_length, d_output, d_mask);
     float time = 0;
     CUDA_TIME_FORCE_ENABLED(id->start, id->stop, 0, &time, {
-        launch_3pass_popc_none(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_mask, id->d_popc, chunk_length, id->chunk_count);
+        launch_3pass_popc_none(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_mask, id->d_popc, chunk_length, element_count);
         cudaMemcpy(id->d_pss, id->d_popc, id->chunk_count * sizeof(uint32_t), cudaMemcpyDeviceToDevice);
 
         launch_3pass_pssskip(0, id->d_pss, id->d_out_count, id->chunk_count);
@@ -281,7 +281,7 @@ float bench6_3pass_optimized_read_skipping_cub_pss(
 
         launch_3pass_proc_true(
             id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_input, d_output, d_mask, id->d_pss2, true, id->d_popc, chunk_length,
-            id->chunk_count);
+            element_count);
     });
     return time;
 }
