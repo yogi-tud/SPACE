@@ -56,12 +56,12 @@ struct intermediate_data {
         if (!streams) alloc_failure();
         stream_events = (cudaEvent_t*)malloc(max_stream_count * sizeof(cudaEvent_t));
         if (!stream_events) alloc_failure();
-        for (int i = 0; i < max_stream_count; i++) {
+        for (size_t i = 0; i < max_stream_count; i++) {
             CUDA_TRY(cudaStreamCreate(&(streams[i])));
             CUDA_TRY(cudaEventCreate(&(stream_events[i])));
         }
     }
-    template <typename T> void prepare_buffers(size_t element_count, int chunk_length, T* d_output, uint8_t* d_mask)
+    template <typename T> void prepare_buffers(size_t element_count, size_t chunk_length, T* d_output, uint8_t* d_mask)
     {
         // make sure unused bits in bitmask are 0
         int unused_bits = overlap(element_count, 8);
@@ -167,19 +167,15 @@ float bench3_3pass_streaming(
         uint64_t units_for_last_stream = unit_count - units_per_stream * (stream_count - 1);
 
         uint64_t skip_blocks_per_unit = minimum_stream_alignment / skip_block_size;
-        uint64_t skip_block_count = unit_count * skip_blocks_per_unit;
         uint64_t skip_blocks_per_stream = units_per_stream * skip_blocks_per_unit;
-        uint64_t skip_blocks_for_last_stream = units_for_last_stream * skip_blocks_per_unit;
 
         uint64_t chunks_per_unit = minimum_stream_alignment / chunk_length;
-        uint64_t chunk_count = unit_count * chunks_per_unit;
         uint64_t chunks_per_stream = units_per_stream * chunks_per_unit;
         uint64_t chunks_for_last_stream = units_for_last_stream * chunks_per_unit;
 
         uint64_t elements_per_stream = units_per_stream * minimum_stream_alignment;
         uint64_t elements_for_last_stream = element_count - units_per_stream * (stream_count - 1) * minimum_stream_alignment;
         uint64_t mask_bytes_per_stream = elements_per_stream / 8;
-        uint64_t mask_bytes_for_last_stream = elements_for_last_stream / 8;
 
         uint32_t chunk_count_p2 = 1;
         while (chunk_count_p2 < chunks_per_stream) {

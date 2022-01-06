@@ -55,7 +55,7 @@ float launch_pattern_proc(
     uint32_t pattern,
     int pattern_length)
 {
-    float time;
+    float time = 0;
     if (blockcount == 0) {
         blockcount = N / 1024;
     }

@@ -61,7 +61,7 @@ float launch_cub_pss(cudaStream_t stream, cudaEvent_t ce_start, cudaEvent_t ce_s
     CUDA_TRY(cub::DeviceScan::ExclusiveSum(d_temp_storage, temp_storage_bytes, d_pss, d_pss_tmp, chunk_count));
     CUDA_TRY(cudaMalloc(&d_temp_storage, temp_storage_bytes));
     // timed relevant computation
-    float time;
+    float time = 0;
     if (stream == 0) {
         CUDA_TIME(
             ce_start, ce_stop, 0, &time,
@@ -90,7 +90,7 @@ float launch_cub_flagged_biterator(
     // allocate temporary storage
     CUDA_TRY(cudaMalloc(&d_temp_storage, temp_storage_bytes));
     // run selection
-    float time;
+    float time = 0;
     CUDA_TIME(
         ce_start, ce_stop, 0, &time,
         cub::DeviceSelect::Flagged(d_temp_storage, temp_storage_bytes, d_input, bit, d_output, d_selected_out, element_count));
@@ -123,7 +123,7 @@ float launch_cub_flagged_bytemask(
     // allocate temporary storage
     CUDA_TRY(cudaMalloc(&d_temp_storage, temp_storage_bytes));
     // run selection
-    float time;
+    float time = 0;
     CUDA_TIME(
         ce_start, ce_stop, 0, &time,
         cub::DeviceSelect::Flagged(d_temp_storage, temp_storage_bytes, d_input, d_bytemask, d_output, d_selected_out, element_count));

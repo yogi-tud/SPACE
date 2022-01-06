@@ -7,6 +7,9 @@
 typedef std::initializer_list<int>::iterator ilii;
 void append_to_each(csv::CSVRow& row, ilii idxs, ilii idxs_end)
 {
+    UNUSED(row);
+    UNUSED(idxs);
+    UNUSED(idxs_end);
 }
 
 template <typename COL1, typename... COL_TYPES>

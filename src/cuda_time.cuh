@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 #include "cuda_try.cuh"
-
+#include "utils.cuh"
 // macro for timing gpu operations
 
 #define CUDA_TIME_FORCE_ENABLED(ce_start, ce_stop, stream, time, ...)                                                                                \
@@ -24,9 +24,13 @@
 
 #define CUDA_TIME(ce_start, ce_stop, stream, time, ...)                                                                                              \
     do {                                                                                                                                             \
+        CUDA_TRY(cudaStreamSynchronize((stream)));                                                                                                   \
         {                                                                                                                                            \
             __VA_ARGS__;                                                                                                                             \
         }                                                                                                                                            \
+        *(time) = 0;                                                                                                                                 \
+        UNUSED(ce_start);                                                                                                                            \
+        UNUSED(ce_stop);                                                                                                                             \
     } while (0)
 
 #else

@@ -72,7 +72,7 @@ float launch_3pass_popc_none(
     uint32_t element_count)
 {
     uint32_t chunk_count = ceildiv(element_count, chunk_length);
-    float time;
+    float time = 0;
     uint32_t chunk_length32 = chunk_length / 32;
     if (blockcount == 0) {
         blockcount = (chunk_count / threadcount) + 1;
@@ -226,7 +226,7 @@ float launch_3pass_pss2_gmem(
     uint32_t* d_pss_out,
     uint32_t chunk_count)
 {
-    float time;
+    float time = 0;
     uint32_t chunk_count_p2 = 1;
     while (chunk_count_p2 < chunk_count) {
         chunk_count_p2 *= 2;
@@ -407,7 +407,7 @@ float launch_3pass_proc_true(
     uint32_t element_count)
 {
     uint32_t chunk_count = ceildiv(element_count, chunk_length);
-    float time;
+    float time = 0;
     uint32_t chunk_count_p2 = 1;
     while (chunk_count_p2 < chunk_count) {
         chunk_count_p2 *= 2;
@@ -504,7 +504,7 @@ float launch_3pass_proc_none(
     uint32_t element_count)
 {
     uint32_t chunk_count = ceildiv(element_count, chunk_length);
-    float time;
+    float time = 0;
     uint32_t chunk_count_p2 = 1;
     while (chunk_count_p2 < chunk_count) {
         chunk_count_p2 *= 2;

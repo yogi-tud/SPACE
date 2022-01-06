@@ -91,12 +91,9 @@ int main(int argc, char** argv)
     benchs.emplace_back("bench8_cub_flagged", [&]() { return bench8_cub_flagged(&id, d_input, d_mask, d_output, col.size()); });
 
     // run benchmark
-    float time_3pass = 0;
-    float time_cub = 0;
-
     std::vector<float> timings(benchs.size(), 0.0f);
     for (int it = 0; it < iterations; it++) {
-        for (int i = 0; i < benchs.size(); i++) {
+        for (size_t i = 0; i < benchs.size(); i++) {
             timings[i] += benchs[i].second();
             size_t failure_count;
             if (!validate(&id, d_validation, d_output, out_length, report_failures, &failure_count)) {

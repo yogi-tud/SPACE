@@ -10,9 +10,9 @@
 // selectivity: [0,1] chance for every bit to be a 1, default is 0
 void generate_mask_uniform(uint8_t* h_buffer, uint64_t offset, uint64_t length, double selectivity)
 {
-    uint32_t p_adjusted = selectivity * UINT32_MAX;
+    uint64_t p_adjusted = selectivity * UINT32_MAX;
     fast_prng rng(42);
-    for (int i = offset; i < offset + length; i++) {
+    for (uint64_t i = offset; i < offset + length; i++) {
         uint8_t acc = 0;
         for (int j = 7; j >= 0; j--) {
             if (rng.rand() < p_adjusted) {
@@ -36,7 +36,7 @@ void generate_mask_zipf(uint8_t* h_buffer, uint64_t count, uint64_t offset, uint
     double c = log10(static_cast<double>(n)) / static_cast<double>(n);
     double k = 1.43;
 
-    for (int i = offset; i < offset + length; i++) {
+    for (uint64_t i = offset; i < offset + length; i++) {
         uint8_t acc = 0;
         for (int j = 7; j >= 0; j--) {
             double ev = a * (1 / (pow((c * (i * 8 + (7 - j))), k)));
@@ -62,7 +62,7 @@ void generate_mask_burst(uint8_t* h_buffer, uint64_t count, uint64_t offset, uin
     double rv = static_cast<double>(rng.rand()) / static_cast<double>(UINT32_MAX);
     uint64_t current_length = static_cast<uint64_t>(segment * (rv + 0.5));
     bool is_one = false;
-    for (int i = offset; i < offset + length; i++) {
+    for (uint64_t i = offset; i < offset + length; i++) {
         uint8_t acc = 0;
         for (int j = 7; j >= 0; j--) {
             if (is_one) {
@@ -86,7 +86,7 @@ void generate_mask_offset(uint8_t* h_buffer, uint64_t offset, uint64_t length, i
     fast_prng rng(42);
     bool invert = spacing < 0;
     spacing = (spacing == 0) ? 1 : spacing;
-    for (int i = offset; i < offset + length; i++) {
+    for (uint64_t i = offset; i < offset + length; i++) {
         uint8_t acc = 0;
         for (int j = 7; j >= 0; j--) {
             if ((i * 8 + (7 - j)) % spacing == 0) {
@@ -104,7 +104,7 @@ void generate_mask_offset(uint8_t* h_buffer, uint64_t offset, uint64_t length, i
 void generate_mask_pattern(uint8_t* h_buffer, uint64_t offset, uint64_t length, uint32_t pattern = 0, uint32_t pattern_length = 0)
 {
     fast_prng rng(42);
-    for (int i = offset; i < offset + length; i++) {
+    for (uint64_t i = offset; i < offset + length; i++) {
         uint8_t acc = 0;
         for (int j = 7; j >= 0; j--) {
             if ((pattern >> ((i * 8 + j) % pattern_length)) & 0b1) {
@@ -121,7 +121,7 @@ template <typename T> uint64_t generate_validation(T* h_data, uint8_t* h_mask, T
 {
     uint32_t onecount = 0;
     uint64_t val_idx = 0;
-    for (int i = 0; i < count / 8; i++) {
+    for (uint64_t i = 0; i < count / 8; i++) {
         uint32_t acc = h_mask[i];
         for (int j = 7; j >= 0; j--) {
             uint64_t idx = i * 8 + (7 - j);
