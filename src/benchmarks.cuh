@@ -64,8 +64,8 @@ struct intermediate_data {
     template <typename T> void prepare_buffers(size_t element_count, int chunk_length, T* d_output, uint8_t* d_mask)
     {
         // make sure unused bits in bitmask are 0
-        if (element_count) {
-            int unused_bits = overlap(element_count, 8);
+        int unused_bits = overlap(element_count, 8);
+        if (unused_bits) {
             uint8_t* last_mask_byte_ptr = d_mask + element_count / 8;
             uint8_t last_mask_byte = gpu_to_val(last_mask_byte_ptr);
             last_mask_byte >>= unused_bits;
