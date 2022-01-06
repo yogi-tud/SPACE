@@ -8,25 +8,39 @@
 #include "cuda_time.cuh"
 
 #define CUDA_WARP_SIZE 32
-
-__global__ void kernel_3pass_popc_none_monolithic(uint8_t* mask, uint32_t* pss, uint32_t chunk_length32, uint32_t chunk_count)
+// chunk_length32 = 32
+// chunk_count = 1
+// element_count = 48
+//  idx 0
+__global__ void kernel_3pass_popc_none_monolithic(uint8_t* mask, uint32_t* pss, uint32_t chunk_length32, uint32_t element_count)
 {
-    uint32_t tid = (blockIdx.x * blockDim.x) + threadIdx.x; // thread index = chunk id
-    if (tid >= chunk_count) {
-        return;
-    }
-    uint32_t idx = chunk_length32 * tid; // index for 1st 32bit-element of this chunk
+    size_t tid = (blockIdx.x * blockDim.x) + threadIdx.x; // thread index = chunk id
+    size_t idx = chunk_length32 * tid; // index for 1st 32bit-element of this chunk
+    size_t bit_idx = idx * 32;
+    if (bit_idx > element_count) return;
     // assuming chunk_length to be multiple of 32
-    uint32_t popcount = 0;
-    for (int i = 0; i < chunk_length32; i++) {
-        popcount += __popc(reinterpret_cast<uint32_t*>(mask)[idx + i]);
+    size_t remaining_bytes_for_grid = element_count - bit_idx;
+    size_t bytes_to_process = chunk_length32 * 4;
+    if (remaining_bytes_for_grid < bytes_to_process) {
+        bytes_to_process = remaining_bytes_for_grid;
     }
+    size_t popcount = 0;
+    int i = 0;
+    for (; i < bytes_to_process / 4 * 4; i += 4) {
+        popcount += __popc(*reinterpret_cast<uint32_t*>(mask + idx + i));
+    }
+    if (i < bytes_to_process) {
+        popcount += __popc(*reinterpret_cast<uint16_t*>(mask + idx + i));
+        i += 2;
+    }
+    if (i < bytes_to_process) popcount += __popc(*reinterpret_cast<uint8_t*>(mask + idx + i));
     pss[tid] = popcount;
 }
 
-__global__ void kernel_3pass_popc_none_striding(uint8_t* mask, uint32_t* pss, uint32_t chunk_length32, uint32_t chunk_count)
+__global__ void kernel_3pass_popc_none_striding(uint8_t* mask, uint32_t* pss, uint32_t chunk_length32, uint32_t element_count)
 {
-    for (uint32_t tid = (blockIdx.x * blockDim.x) + threadIdx.x; tid < chunk_count; tid += blockDim.x * gridDim.x) {
+    // TODO: FIX
+    for (uint32_t tid = (blockIdx.x * blockDim.x) + threadIdx.x; tid < element_count; tid += blockDim.x * gridDim.x) {
         uint32_t idx = chunk_length32 * tid; // index for 1st 32bit-element of this chunk
         // assuming chunk_length to be multiple of 32
         uint32_t popcount = 0;
@@ -45,15 +59,16 @@ float launch_3pass_popc_none(
     uint8_t* d_mask,
     uint32_t* d_pss,
     uint32_t chunk_length,
-    uint32_t chunk_count)
+    uint32_t element_count)
 {
+    uint32_t chunk_count = ceildiv(element_count, chunk_length);
     float time;
     uint32_t chunk_length32 = chunk_length / 32;
     if (blockcount == 0) {
         blockcount = (chunk_count / threadcount) + 1;
         CUDA_TIME(
             ce_start, ce_stop, 0, &time,
-            (kernel_3pass_popc_none_monolithic<<<blockcount, threadcount>>>(d_mask, d_pss, chunk_length32, chunk_count)));
+            (kernel_3pass_popc_none_monolithic<<<blockcount, threadcount>>>(d_mask, d_pss, chunk_length32, element_count)));
     }
     else {
         CUDA_TIME(
