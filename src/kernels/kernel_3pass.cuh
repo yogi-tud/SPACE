@@ -8,9 +8,6 @@
 #include "cuda_time.cuh"
 
 #define CUDA_WARP_SIZE 32
-// chunk_length32 = 32
-// element_count = 8
-//  idx 0
 __global__ void kernel_3pass_popc_none_monolithic(uint8_t* mask, uint32_t* pss, uint32_t chunk_length32, uint32_t element_count)
 {
     size_t tid = (blockIdx.x * blockDim.x) + threadIdx.x; // thread index = chunk id

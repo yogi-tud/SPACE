@@ -72,9 +72,6 @@ struct intermediate_data {
         val_to_gpu(last_mask_byte_ptr, last_mask_byte);
         CUDA_TRY(cudaMemset(d_out_count, 0, (max_stream_count + 1) * sizeof(*d_out_count)));
         CUDA_TRY(cudaMemset(d_output, 0, element_count * sizeof(T)));
-        CUDA_TRY(cudaMemset(d_pss, 0, intermediate_size_3pass));
-        CUDA_TRY(cudaMemset(d_pss2, 0, intermediate_size_3pass));
-        CUDA_TRY(cudaMemset(d_popc, 0, intermediate_size_3pass));
         if (this->element_count >= element_count || this->chunk_length >= chunk_length) return;
         error("sizes in intermediate data are smaller than the ones "
               "submitted "
@@ -236,7 +233,21 @@ float bench3_3pass_streaming(
 }
 
 template <class T>
-float bench4_3pass_optimized_read_skipping_partial_pss(
+float bench4_naive_chunk_per_thread_skipping(
+    intermediate_data* id, T* d_input, uint8_t* d_mask, T* d_output, size_t element_count, size_t chunk_length, int block_size, int grid_size)
+{
+    id->prepare_buffers(element_count, chunk_length, d_output, d_mask);
+    float time = 0;
+    CUDA_TIME_FORCE_ENABLED(
+        id->start, id->stop, 0, &time,
+        {
+            // TODO
+        });
+    return time;
+}
+
+template <class T>
+float bench5_3pass_optimized_read_skipping_partial_pss(
     intermediate_data* id, T* d_input, uint8_t* d_mask, T* d_output, size_t element_count, size_t chunk_length, int block_size, int grid_size)
 {
     id->prepare_buffers(element_count, chunk_length, d_output, d_mask);
@@ -254,7 +265,7 @@ float bench4_3pass_optimized_read_skipping_partial_pss(
 }
 
 template <class T>
-float bench5_3pass_optimized_read_skipping_two_phase_pss(
+float bench6_3pass_optimized_read_skipping_two_phase_pss(
     intermediate_data* id, T* d_input, uint8_t* d_mask, T* d_output, size_t element_count, size_t chunk_length, int block_size, int grid_size)
 {
     id->prepare_buffers(element_count, chunk_length, d_output, d_mask);
@@ -273,7 +284,7 @@ float bench5_3pass_optimized_read_skipping_two_phase_pss(
 }
 
 template <class T>
-float bench6_3pass_optimized_read_skipping_cub_pss(
+float bench7_3pass_optimized_read_skipping_cub_pss(
     intermediate_data* id, T* d_input, uint8_t* d_mask, T* d_output, size_t element_count, size_t chunk_length, int block_size, int grid_size)
 {
     id->prepare_buffers(element_count, chunk_length, d_output, d_mask);
@@ -294,7 +305,7 @@ float bench6_3pass_optimized_read_skipping_cub_pss(
     return time;
 }
 
-template <class T> float bench7_cub_flagged(intermediate_data* id, T* d_input, uint8_t* d_mask, T* d_output, size_t element_count)
+template <class T> float bench8_cub_flagged(intermediate_data* id, T* d_input, uint8_t* d_mask, T* d_output, size_t element_count)
 {
     id->prepare_buffers(element_count, 0, d_output, d_mask);
     bitstream_iterator bit{d_mask};
