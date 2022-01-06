@@ -9,8 +9,7 @@
 
 // count: number of bytes to generate
 // selectivity: [0,1] chance for every bit to be a 1, default is 0
-__global__ void kernel_generate_mask_uniform(
-    uint8_t* d_buffer, uint64_t count, double selectivity)
+__global__ void kernel_generate_mask_uniform(uint8_t* d_buffer, uint64_t count, double selectivity)
 {
     uint64_t tid = blockIdx.x * blockDim.x + threadIdx.x;
     uint64_t gridstride = blockDim.x * gridDim.x;
@@ -46,8 +45,7 @@ __global__ void kernel_generate_mask_zipf(uint8_t* d_buffer, uint64_t count)
         uint8_t acc = 0;
         for (int j = 7; j >= 0; j--) {
             double ev = a * (1 / (pow((c * (i * 8 + (7 - j))), k)));
-            double rv = static_cast<double>(rng.rand()) /
-                        static_cast<double>(UINT32_MAX);
+            double rv = static_cast<double>(rng.rand()) / static_cast<double>(UINT32_MAX);
             if (rv < ev) {
                 acc |= (1 << j);
             }
@@ -56,8 +54,7 @@ __global__ void kernel_generate_mask_zipf(uint8_t* d_buffer, uint64_t count)
     }
 }
 
-__global__ void kernel_generate_mask_burst(
-    uint8_t* d_buffer, uint64_t count, double segment_sizer)
+__global__ void kernel_generate_mask_burst(uint8_t* d_buffer, uint64_t count, double segment_sizer)
 {
     uint64_t tid = blockIdx.x * blockDim.x + threadIdx.x;
     uint64_t gridstride = blockDim.x * gridDim.x;
@@ -66,8 +63,7 @@ __global__ void kernel_generate_mask_burst(
     // segment_sizer sets pseudo segment distance, can be modified by up to
     // +/-50% in size and is randomly 1/0
     double segment = static_cast<double>(count) * segment_sizer;
-    double rv =
-        static_cast<double>(rng.rand()) / static_cast<double>(UINT32_MAX);
+    double rv = static_cast<double>(rng.rand()) / static_cast<double>(UINT32_MAX);
     uint64_t current_length = static_cast<uint64_t>(segment * (rv + 0.5));
     bool is_one = false;
 
@@ -78,8 +74,7 @@ __global__ void kernel_generate_mask_burst(
                 acc |= (1 << j);
             }
             if (--current_length <= 0) {
-                rv = static_cast<double>(rng.rand()) /
-                     static_cast<double>(UINT32_MAX);
+                rv = static_cast<double>(rng.rand()) / static_cast<double>(UINT32_MAX);
                 current_length = static_cast<uint64_t>(segment * (rv + 0.5));
                 is_one = !is_one;
             }
@@ -88,8 +83,7 @@ __global__ void kernel_generate_mask_burst(
     }
 }
 
-__global__ void
-kernel_generate_mask_offset(uint8_t* d_buffer, uint64_t count, int64_t spacing)
+__global__ void kernel_generate_mask_offset(uint8_t* d_buffer, uint64_t count, int64_t spacing)
 {
     uint64_t tid = blockIdx.x * blockDim.x + threadIdx.x;
     uint64_t gridstride = blockDim.x * gridDim.x;
@@ -109,9 +103,7 @@ kernel_generate_mask_offset(uint8_t* d_buffer, uint64_t count, int64_t spacing)
     }
 }
 
-__global__ void kernel_generate_mask_pattern(
-    uint8_t* d_buffer, uint64_t count, uint32_t pattern = 0,
-    uint32_t pattern_length = 0)
+__global__ void kernel_generate_mask_pattern(uint8_t* d_buffer, uint64_t count, uint32_t pattern = 0, uint32_t pattern_length = 0)
 {
     uint64_t tid = blockIdx.x * blockDim.x + threadIdx.x;
     uint64_t gridstride = blockDim.x * gridDim.x;
@@ -127,9 +119,7 @@ __global__ void kernel_generate_mask_pattern(
     }
 }
 
-template <typename T>
-__global__ void kernel_check_validation(
-    T* d_validation, T* d_data, uint64_t count, uint64_t* d_failure_count)
+template <typename T> __global__ void kernel_check_validation(T* d_validation, T* d_data, uint64_t count, uint64_t* d_failure_count)
 {
     uint64_t tid = blockIdx.x * blockDim.x + threadIdx.x;
     uint64_t gridstride = blockDim.x * gridDim.x;
@@ -143,13 +133,9 @@ __global__ void kernel_check_validation(
     }
     if (d_failure_count) {
 #if defined(__CUDACC__)
-        atomicAdd(
-            reinterpret_cast<unsigned long long int*>(d_failure_count),
-            failures);
+        atomicAdd(reinterpret_cast<unsigned long long int*>(d_failure_count), failures);
 #else
-        __ullAtomicAdd(
-            reinterpret_cast<unsigned long long int*>(d_failure_count),
-            failures);
+        __ullAtomicAdd(reinterpret_cast<unsigned long long int*>(d_failure_count), failures);
 #endif
     }
 }

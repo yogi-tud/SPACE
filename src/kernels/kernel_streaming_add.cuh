@@ -12,7 +12,7 @@ __global__ void kernel_streaming_add_pss_totals(uint32_t* previous_pss_total, ui
 
 void launch_streaming_add_pss_totals(cudaStream_t stream, uint32_t* d_previous_pss_total, uint32_t* d_target_pss_total)
 {
-    kernel_streaming_add_pss_totals<<<1,1,0,stream>>>(d_previous_pss_total, d_target_pss_total);
+    kernel_streaming_add_pss_totals<<<1, 1, 0, stream>>>(d_previous_pss_total, d_target_pss_total);
 }
 
 #endif
