@@ -22,7 +22,7 @@ int main(int argc, char** argv)
         printf("setting device numer to %i\n", device);
         CUDA_TRY(cudaSetDevice(device));
     }
-    const char* csv_path = "../res/Arade.csv";
+    const char* csv_path = "../res/Arade_1.csv";
     if (argc > 2) {
         csv_path = argv[2];
     }
@@ -31,6 +31,11 @@ int main(int argc, char** argv)
         iterations = atoi(argv[3]);
         if (iterations < 1) iterations = 1;
         printf("setting iterations numer to %i\n", iterations);
+    }
+    bool report_failures = false;
+    if (argc > 4) {
+        printf("will report failures %i\n", iterations);
+        report_failures = true;
     }
     // load data
     std::vector<float> col;
@@ -94,8 +99,7 @@ int main(int argc, char** argv)
         for (int i = 0; i < benchs.size(); i++) {
             timings[i] += benchs[i].second();
             size_t failure_count;
-
-            if (!validate(&id, d_validation, d_output, out_length, &failure_count)) {
+            if (!validate(&id, d_validation, d_output, out_length, report_failures, &failure_count)) {
                 fprintf(stderr, "validation failure in bench %s, run %i: %zu failures\n", benchs[i].first.c_str(), it, failure_count);
                 // exit(EXIT_FAILURE);
             }

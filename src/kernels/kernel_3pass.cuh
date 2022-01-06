@@ -11,8 +11,8 @@
 __global__ void kernel_3pass_popc_none_monolithic(uint8_t* mask, uint32_t* pss, uint32_t chunk_length32, uint32_t element_count)
 {
     size_t tid = (blockIdx.x * blockDim.x) + threadIdx.x; // thread index = chunk id
-    size_t idx = chunk_length32 * tid; // index for 1st 32bit-element of this chunk
-    size_t bit_idx = idx * 32;
+    size_t idx = chunk_length32 * 4 * tid; // index for 1st 8bit-element of this chunk
+    size_t bit_idx = idx * 8;
     if (bit_idx > element_count) return;
     // assuming chunk_length to be multiple of 32
     size_t remaining_bytes_for_grid = (element_count - bit_idx) / 8;
@@ -35,16 +35,14 @@ __global__ void kernel_3pass_popc_none_monolithic(uint8_t* mask, uint32_t* pss, 
 
 __global__ void kernel_3pass_popc_none_striding(uint8_t* mask, uint32_t* pss, uint32_t chunk_length32, uint32_t element_count)
 {
-    size_t tid = (blockIdx.x * blockDim.x) + threadIdx.x; // thread index = chunk id
-
-    // TODO: maybe improve?
-    for (; tid < element_count; tid += blockDim.x * gridDim.x) {
-        size_t idx = chunk_length32 * tid; // index for 1st 32bit-element of this chunk
-        size_t bit_idx = idx * 32;
-        if (bit_idx > element_count) return;
+    uint32_t tid = (blockIdx.x * blockDim.x) + threadIdx.x; // thread index = chunk id
+    uint32_t chunk_count = ceildiv(element_count, chunk_length32 * 32);
+    for (; tid < chunk_count; tid += blockDim.x * gridDim.x) {
+        uint32_t idx = chunk_length32 * 4 * tid; // index for 1st 8bit-element of this chunk
+        uint32_t bit_idx = idx * 8;
         // assuming chunk_length to be multiple of 32
-        size_t remaining_bytes_for_grid = (element_count - bit_idx) / 8;
-        size_t bytes_to_process = chunk_length32 * 4;
+        uint32_t remaining_bytes_for_grid = (element_count - bit_idx) / 8;
+        uint32_t bytes_to_process = chunk_length32 * 4;
         if (remaining_bytes_for_grid < bytes_to_process) {
             bytes_to_process = remaining_bytes_for_grid;
         }
@@ -285,11 +283,7 @@ __global__ void kernel_3pass_proc_true_striding(
     if (base_idx >= element_count) {
         return;
     }
-    uint32_t stop_idx = base_idx + warp_stride;
-    if (stop_idx > element_count) {
-        stop_idx = element_count;
-    }
-    uint32_t stride = 1024; // BLOCK_DIM * 32; // 1024
+    uint32_t stride = 1024;
     if (warp_offset == 0) {
         if (complete_pss) {
             if (base_idx / chunk_length < chunk_count) {
@@ -297,13 +291,15 @@ __global__ void kernel_3pass_proc_true_striding(
             }
             else {
                 return;
-                // printf("%i %i %i\n", blockIdx.x, threadIdx.x, base_idx/chunk_length);
-                // smem_out_idx[warp_index] = 0;
             }
         }
         else {
             smem_out_idx[warp_index] = d_3pass_pproc_pssidx(base_idx / chunk_length, pss, chunk_count_p2);
         }
+    }
+    uint32_t stop_idx = base_idx + warp_stride;
+    if (stop_idx > chunk_length * chunk_count) {
+        stop_idx = chunk_length * chunk_count;
     }
     for (uint32_t tid = base_idx + warp_offset; tid < stop_idx; tid += stride) {
         // check chunk popcount at base_idx for potential skipped
@@ -331,14 +327,16 @@ __global__ void kernel_3pass_proc_true_striding(
             smem[threadIdx.x] = 0;
         }
         __syncwarp();
-        for (int i = 0; i < CUDA_WARP_SIZE && tid + i < stop_idx; i++) {
+        for (int i = 0; i < CUDA_WARP_SIZE; i++) {
             uint32_t s = smem[threadIdx.x - warp_offset + i];
             uint32_t out_idx_me = __popc(s >> (CUDA_WARP_SIZE - warp_offset));
             bool v = (s >> ((CUDA_WARP_SIZE - 1) - warp_offset)) & 0b1;
-            if (v) {
+            uint32_t input_index = tid + (i * CUDA_WARP_SIZE);
+            if (v && input_index < element_count) {
                 uint32_t out_idx = smem_out_idx[warp_index] + out_idx_me;
-                output[out_idx] = input[tid + (i * CUDA_WARP_SIZE)];
+                output[out_idx] = input[input_index];
             }
+            __syncwarp();
             if (warp_offset == (CUDA_WARP_SIZE - 1)) {
                 smem_out_idx[warp_index] += out_idx_me + v;
             }

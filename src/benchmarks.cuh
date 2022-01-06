@@ -27,7 +27,7 @@ struct intermediate_data {
     {
         this->chunk_length = chunk_length;
         this->element_count = element_count;
-        this->chunk_count = ceildiv(element_count, chunk_length);
+        this->chunk_count = ceildiv(ceil2mult(element_count, 8), chunk_length);
         this->max_stream_count = max_stream_count;
         uint8_t* null = (uint8_t*)NULL;
         intermediate_size_3pass = (chunk_count + 1) * sizeof(uint32_t);
@@ -319,10 +319,10 @@ template <class T> float bench8_cub_flagged(intermediate_data* id, T* d_input, u
     return time;
 }
 
-bool validate(intermediate_data* id, float* d_validation, float* d_output, uint64_t out_length, uint64_t* failure_count = NULL)
+bool validate(intermediate_data* id, float* d_validation, float* d_output, uint64_t out_length, bool report_failures, uint64_t* failure_count = NULL)
 {
     val_to_gpu(id->d_failure_count, 0);
-    kernel_check_validation<<<64, 32>>>(d_validation, d_output, out_length, id->d_failure_count);
+    kernel_check_validation<<<64, 32>>>(d_validation, d_output, out_length, id->d_failure_count, report_failures);
     auto fc = gpu_to_val(id->d_failure_count);
     if (failure_count) *failure_count = fc;
     return (fc == 0);
