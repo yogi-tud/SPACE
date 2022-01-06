@@ -71,8 +71,17 @@ struct intermediate_data {
         }
     }
     template <typename T>
-    void prepare_buffers(size_t element_count, int chunk_length, T* d_output)
+    void prepare_buffers(
+        size_t element_count, int chunk_length, T* d_output, uint8_t* d_mask)
     {
+        // make sure unused bits in bitmask are 0
+        int used_bits = element_count % 8;
+        int unused_bits = used_bits ? 8 - used_bits : 0;
+        uint8_t* last_mask_byte_ptr = d_mask + overlap(element_count, 8);
+        uint8_t last_mask_byte = gpu_to_val(last_mask_byte_ptr);
+        last_mask_byte >>= unused_bits;
+        last_mask_byte <<= unused_bits;
+        val_to_gpu(last_mask_byte_ptr, last_mask_byte);
         CUDA_TRY(cudaMemset(
             d_out_count, 0, (max_stream_count + 1) * sizeof(*d_out_count)));
         CUDA_TRY(cudaMemset(d_output, 0, element_count * sizeof(T)));
@@ -108,7 +117,7 @@ float bench1_base_variant(
     intermediate_data* id, T* d_input, uint8_t* d_mask, T* d_output,
     size_t element_count, size_t chunk_length, int block_size, int grid_size)
 {
-    id->prepare_buffers(element_count, chunk_length, d_output);
+    id->prepare_buffers(element_count, chunk_length, d_output, d_mask);
     float time = 0;
     CUDA_TIME_FORCE_ENABLED(id->start, id->stop, 0, &time, {
         launch_3pass_popc_none(
@@ -133,7 +142,7 @@ float bench2_base_variant_shared_mem(
     intermediate_data* id, T* d_input, uint8_t* d_mask, T* d_output,
     size_t element_count, size_t chunk_length, int block_size, int grid_size)
 {
-    id->prepare_buffers(element_count, chunk_length, d_output);
+    id->prepare_buffers(element_count, chunk_length, d_output, d_mask);
     float time = 0;
     CUDA_TIME_FORCE_ENABLED(
         id->start, id->stop, 0, &time,
@@ -150,7 +159,7 @@ float bench3_3pass_streaming(
     int stream_count = 2)
 {
     // TODO: make use of streaming parameters
-    id->prepare_buffers(0, 0, d_output);
+    id->prepare_buffers(element_count, chunk_length, d_output, d_mask);
     float time = 0;
     if (stream_count < 1) {
         error("stream_count must be >= 1");
@@ -196,7 +205,7 @@ float bench3_3pass_streaming(
                 id->d_pss + chunks_per_stream * i, chunk_length32,
                 chunks_per_stream);
             // launch pss for i
-            //TODO these temporary storage allocations are timed
+            // TODO these temporary storage allocations are timed
             launch_cub_pss(
                 id->streams[i], 0, 0, id->d_pss + chunks_per_stream * i,
                 id->d_out_count + i + 1, chunks_per_stream);
@@ -240,7 +249,7 @@ float bench4_3pass_optimized_read_skipping_partial_pss(
     intermediate_data* id, T* d_input, uint8_t* d_mask, T* d_output,
     size_t element_count, size_t chunk_length, int block_size, int grid_size)
 {
-    id->prepare_buffers(element_count, chunk_length, d_output);
+    id->prepare_buffers(element_count, chunk_length, d_output, d_mask);
     float time = 0;
     CUDA_TIME_FORCE_ENABLED(id->start, id->stop, 0, &time, {
         launch_3pass_popc_none(
@@ -265,7 +274,7 @@ float bench5_3pass_optimized_read_skipping_two_phase_pss(
     intermediate_data* id, T* d_input, uint8_t* d_mask, T* d_output,
     size_t element_count, size_t chunk_length, int block_size, int grid_size)
 {
-    id->prepare_buffers(element_count, chunk_length, d_output);
+    id->prepare_buffers(element_count, chunk_length, d_output, d_mask);
     float time = 0;
     CUDA_TIME_FORCE_ENABLED(id->start, id->stop, 0, &time, {
         launch_3pass_popc_none(
@@ -293,7 +302,7 @@ float bench6_3pass_optimized_read_skipping_cub_pss(
     intermediate_data* id, T* d_input, uint8_t* d_mask, T* d_output,
     size_t element_count, size_t chunk_length, int block_size, int grid_size)
 {
-    id->prepare_buffers(element_count, chunk_length, d_output);
+    id->prepare_buffers(element_count, chunk_length, d_output, d_mask);
     float time = 0;
     CUDA_TIME_FORCE_ENABLED(id->start, id->stop, 0, &time, {
         launch_3pass_popc_none(
@@ -322,7 +331,7 @@ float bench7_cub_flagged(
     intermediate_data* id, T* d_input, uint8_t* d_mask, T* d_output,
     size_t element_count)
 {
-    id->prepare_buffers(element_count, 0, d_output);
+    id->prepare_buffers(element_count, 0, d_output, d_mask);
     bitstream_iterator bit{d_mask};
     float time = 0;
     // determine temporary device storage requirements
