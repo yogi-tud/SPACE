@@ -30,10 +30,10 @@ struct intermediate_data {
         this->chunk_count = ceildiv(element_count, chunk_length);
         this->max_stream_count = max_stream_count;
         uint8_t* null = (uint8_t*)NULL;
-        intermediate_size_3pass = chunk_count * sizeof(uint32_t);
+        intermediate_size_3pass = (chunk_count + 1) * sizeof(uint32_t);
         if (chunk_length > 32) {
             // for the streaming kernel
-            intermediate_size_3pass = ceildiv(element_count, 32) * sizeof(uint32_t);
+            intermediate_size_3pass = ceildiv(element_count + 1, 32) * sizeof(uint32_t);
         }
         size_t temp_storage_bytes_pss;
         CUDA_TRY(cub::DeviceScan::ExclusiveSum(null, temp_storage_bytes_pss, null, null, chunk_count));
@@ -64,12 +64,14 @@ struct intermediate_data {
     template <typename T> void prepare_buffers(size_t element_count, int chunk_length, T* d_output, uint8_t* d_mask)
     {
         // make sure unused bits in bitmask are 0
-        int unused_bits = overlap(element_count, 8);
-        uint8_t* last_mask_byte_ptr = d_mask + element_count / 8;
-        uint8_t last_mask_byte = gpu_to_val(last_mask_byte_ptr);
-        last_mask_byte >>= unused_bits;
-        last_mask_byte <<= unused_bits;
-        val_to_gpu(last_mask_byte_ptr, last_mask_byte);
+        if (element_count) {
+            int unused_bits = overlap(element_count, 8);
+            uint8_t* last_mask_byte_ptr = d_mask + element_count / 8;
+            uint8_t last_mask_byte = gpu_to_val(last_mask_byte_ptr);
+            last_mask_byte >>= unused_bits;
+            last_mask_byte <<= unused_bits;
+            val_to_gpu(last_mask_byte_ptr, last_mask_byte);
+        }
         CUDA_TRY(cudaMemset(d_out_count, 0, (max_stream_count + 1) * sizeof(*d_out_count)));
         CUDA_TRY(cudaMemset(d_output, 0, element_count * sizeof(T)));
         if (this->element_count >= element_count || this->chunk_length >= chunk_length) return;
