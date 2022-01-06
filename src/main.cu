@@ -38,7 +38,7 @@ int main(int argc, char** argv)
     }
 
     // load data
-    std::vector<float> col{10000, 2, 3, 4, 5, 6, 7, 8};
+    std::vector<float> col{10000, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13};
     // load_csv("../res/Arade_1.csv", {3}, col);
 
     float* d_input = vector_to_gpu(col);
@@ -70,34 +70,30 @@ int main(int argc, char** argv)
     float time_cub = 0;
 
     std::vector<std::pair<std::string, std::function<float()>>> benchs;
-    /*
+
     benchs.emplace_back("bench1_base_variant", [&]() { return bench1_base_variant(&id, d_input, d_mask, d_output, col.size(), 1024, 256, 1024); });
-   benchs.emplace_back("bench2_base_variant_shared_mem", [&]() {
-        return bench2_base_variant_shared_mem(
-            &id, d_input, d_mask, d_output, col.size(), 1024, 256, 1024);
-    });*/
+    benchs.emplace_back("bench2_base_variant_shared_mem", [&]() {
+        return bench2_base_variant_shared_mem(&id, d_input, d_mask, d_output, col.size(), 1024, 256, 1024);
+    });
     benchs.emplace_back(
         "bench3_3pass_streaming", [&]() { return bench3_3pass_streaming(&id, d_input, d_mask, d_output, col.size(), 1024, 256, 1024); });
-    /*
+
     benchs.emplace_back("bench4_3pass_optimized_read_skipping_partial_pss", [&]() {
         return bench4_3pass_optimized_read_skipping_partial_pss(&id, d_input, d_mask, d_output, col.size(), 1024, 256, 1024);
     });
     benchs.emplace_back("bench5_3pass_optimized_read_skipping_two_phase_pss", [&]() {
         return bench5_3pass_optimized_read_skipping_two_phase_pss(&id, d_input, d_mask, d_output, col.size(), 1024, 256, 1024);
     });
+
     benchs.emplace_back("bench6_3pass_optimized_read_skipping_cub_pss", [&]() {
         return bench6_3pass_optimized_read_skipping_cub_pss(&id, d_input, d_mask, d_output, col.size(), 1024, 256, 1024);
     });
     benchs.emplace_back("bench7_cub_flagged", [&]() { return bench7_cub_flagged(&id, d_input, d_mask, d_output, col.size()); });
-    ;*/
     std::vector<float> timings(benchs.size(), 0.0f);
     for (int it = 0; it < iterations; it++) {
         for (int i = 0; i < benchs.size(); i++) {
             timings[i] += benchs[i].second();
             size_t failure_count;
-            // gpu_buffer_print(d_output, 0, 9);
-            // puts("pss:");
-            // gpu_buffer_print(id.d_popc, 0, 1);
             if (!validate(&id, d_validation, d_output, out_length, &failure_count)) {
                 fprintf(stderr, "validation failure in bench %s, run %i: %zu failures\n", benchs[i].first.c_str(), it, failure_count);
                 // exit(EXIT_FAILURE);

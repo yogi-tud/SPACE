@@ -38,14 +38,30 @@ __global__ void kernel_3pass_popc_none_monolithic(uint8_t* mask, uint32_t* pss, 
 
 __global__ void kernel_3pass_popc_none_striding(uint8_t* mask, uint32_t* pss, uint32_t chunk_length32, uint32_t element_count)
 {
-    // TODO: FIX
-    for (uint32_t tid = (blockIdx.x * blockDim.x) + threadIdx.x; tid < element_count; tid += blockDim.x * gridDim.x) {
-        uint32_t idx = chunk_length32 * tid; // index for 1st 32bit-element of this chunk
+    size_t tid = (blockIdx.x * blockDim.x) + threadIdx.x; // thread index = chunk id
+
+    // TODO: maybe improve?
+    for (; tid < element_count; tid += blockDim.x * gridDim.x) {
+        size_t idx = chunk_length32 * tid; // index for 1st 32bit-element of this chunk
+        size_t bit_idx = idx * 32;
+        if (bit_idx > element_count) return;
+        // assuming chunk_length to be multiple of 32
+        size_t remaining_bytes_for_grid = (element_count - bit_idx) / 8;
+        size_t bytes_to_process = chunk_length32 * 4;
+        if (remaining_bytes_for_grid < bytes_to_process) {
+            bytes_to_process = remaining_bytes_for_grid;
+        }
         // assuming chunk_length to be multiple of 32
         uint32_t popcount = 0;
-        for (int i = 0; i < chunk_length32; i++) {
-            popcount += __popc(reinterpret_cast<uint32_t*>(mask)[idx + i]);
+        int i = 0;
+        for (; i < bytes_to_process / 4 * 4; i += 4) {
+            popcount += __popc(*reinterpret_cast<uint32_t*>(mask + idx + i));
         }
+        if (i < bytes_to_process / 2 * 2) {
+            popcount += __popc(*reinterpret_cast<uint16_t*>(mask + idx + i));
+            i += 2;
+        }
+        if (i < bytes_to_process) popcount += __popc(*reinterpret_cast<uint8_t*>(mask + idx + i));
         pss[tid] = popcount;
     }
 }
@@ -421,10 +437,10 @@ float launch_3pass_proc_true(
 
 template <typename T, bool complete_pss>
 __global__ void kernel_3pass_proc_none_monolithic(
-    T* input, T* output, uint8_t* mask, uint32_t* pss, uint32_t chunk_length8, uint32_t chunk_count, uint32_t chunk_count_p2)
+    T* input, T* output, uint8_t* mask, uint32_t* pss, uint32_t chunk_length8, uint32_t element_count, uint32_t chunk_count_p2)
 {
     uint32_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
-    if (tid >= chunk_count) {
+    if (tid * chunk_length8 * 8 >= element_count) {
         return;
     }
     uint32_t out_idx;
@@ -440,7 +456,7 @@ __global__ void kernel_3pass_proc_none_monolithic(
         for (int j = 7; j >= 0; j--) {
             uint64_t idx = i * 8 + (7 - j);
             bool v = 0b1 & (acc >> j);
-            if (v) {
+            if (v && idx < element_count) {
                 output[out_idx++] = input[idx];
             }
         }
@@ -449,8 +465,9 @@ __global__ void kernel_3pass_proc_none_monolithic(
 
 template <typename T, bool complete_pss>
 __global__ void kernel_3pass_proc_none_striding(
-    T* input, T* output, uint8_t* mask, uint32_t* pss, uint32_t chunk_length8, uint32_t chunk_count, uint32_t chunk_count_p2)
+    T* input, T* output, uint8_t* mask, uint32_t* pss, uint32_t chunk_length8, uint32_t element_count, uint32_t chunk_count_p2)
 {
+    uint32_t chunk_count = ceildiv(element_count, chunk_length8 * 8);
     for (uint32_t tid = (blockIdx.x * blockDim.x) + threadIdx.x; tid < chunk_count; tid += blockDim.x * gridDim.x) {
         uint32_t out_idx;
         if (complete_pss) {
@@ -465,7 +482,7 @@ __global__ void kernel_3pass_proc_none_striding(
             for (int j = 7; j >= 0; j--) {
                 uint64_t idx = i * 8 + (7 - j);
                 bool v = 0b1 & (acc >> j);
-                if (v) {
+                if (v && idx < element_count) {
                     output[out_idx++] = input[idx];
                 }
             }
@@ -486,8 +503,9 @@ float launch_3pass_proc_none(
     uint32_t* d_pss,
     bool full_pss,
     uint32_t chunk_length,
-    uint32_t chunk_count)
+    uint32_t element_count)
 {
+    uint32_t chunk_count = ceildiv(element_count, chunk_length);
     float time;
     uint32_t chunk_count_p2 = 1;
     while (chunk_count_p2 < chunk_count) {
@@ -499,13 +517,13 @@ float launch_3pass_proc_none(
             CUDA_TIME(
                 ce_start, ce_stop, 0, &time,
                 (kernel_3pass_proc_none_monolithic<T, true>
-                 <<<blockcount, threadcount>>>(d_input, d_output, d_mask, d_pss, chunk_length / 8, chunk_count, 0)));
+                 <<<blockcount, threadcount>>>(d_input, d_output, d_mask, d_pss, chunk_length / 8, element_count, 0)));
         }
         else {
             CUDA_TIME(
                 ce_start, ce_stop, 0, &time,
                 (kernel_3pass_proc_none_monolithic<T, false>
-                 <<<blockcount, threadcount>>>(d_input, d_output, d_mask, d_pss, chunk_length / 8, chunk_count, chunk_count_p2)));
+                 <<<blockcount, threadcount>>>(d_input, d_output, d_mask, d_pss, chunk_length / 8, element_count, chunk_count_p2)));
         }
     }
     else {
@@ -513,13 +531,13 @@ float launch_3pass_proc_none(
             CUDA_TIME(
                 ce_start, ce_stop, 0, &time,
                 (kernel_3pass_proc_none_striding<T, true>
-                 <<<blockcount, threadcount>>>(d_input, d_output, d_mask, d_pss, chunk_length / 8, chunk_count, 0)));
+                 <<<blockcount, threadcount>>>(d_input, d_output, d_mask, d_pss, chunk_length / 8, element_count, 0)));
         }
         else {
             CUDA_TIME(
                 ce_start, ce_stop, 0, &time,
                 (kernel_3pass_proc_none_striding<T, false>
-                 <<<blockcount, threadcount>>>(d_input, d_output, d_mask, d_pss, chunk_length / 8, chunk_count, chunk_count_p2)));
+                 <<<blockcount, threadcount>>>(d_input, d_output, d_mask, d_pss, chunk_length / 8, element_count, chunk_count_p2)));
         }
     }
     return time;

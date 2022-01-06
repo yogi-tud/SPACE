@@ -107,7 +107,7 @@ float bench1_base_variant(
         launch_3pass_pss_gmem(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, id->d_pss, id->chunk_count, id->d_out_count);
         launch_3pass_pss2_gmem(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, id->d_pss, id->d_pss2, id->chunk_count);
         launch_3pass_proc_none(
-            id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_input, d_output, d_mask, id->d_pss2, true, chunk_length, id->chunk_count);
+            id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_input, d_output, d_mask, id->d_pss2, true, chunk_length, element_count);
     });
     return time;
 }
@@ -237,12 +237,12 @@ float bench4_3pass_optimized_read_skipping_partial_pss(
     id->prepare_buffers(element_count, chunk_length, d_output, d_mask);
     float time = 0;
     CUDA_TIME_FORCE_ENABLED(id->start, id->stop, 0, &time, {
-        launch_3pass_popc_none(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_mask, id->d_popc, chunk_length, id->chunk_count);
+        launch_3pass_popc_none(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_mask, id->d_popc, chunk_length, element_count);
         cudaMemcpy(id->d_pss, id->d_popc, id->chunk_count * sizeof(uint32_t), cudaMemcpyDeviceToDevice);
         launch_3pass_pss_gmem(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, id->d_pss, id->chunk_count, id->d_out_count);
         launch_3pass_proc_true(
             id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_input, d_output, d_mask, id->d_pss, false, id->d_popc, chunk_length,
-            id->chunk_count);
+            element_count);
     });
     return time;
 }
@@ -254,13 +254,13 @@ float bench5_3pass_optimized_read_skipping_two_phase_pss(
     id->prepare_buffers(element_count, chunk_length, d_output, d_mask);
     float time = 0;
     CUDA_TIME_FORCE_ENABLED(id->start, id->stop, 0, &time, {
-        launch_3pass_popc_none(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_mask, id->d_popc, chunk_length, id->chunk_count);
+        launch_3pass_popc_none(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_mask, id->d_popc, chunk_length, element_count);
         cudaMemcpy(id->d_pss, id->d_popc, id->chunk_count * sizeof(uint32_t), cudaMemcpyDeviceToDevice);
         launch_3pass_pss_gmem(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, id->d_pss, id->chunk_count, id->d_out_count);
         launch_3pass_pss2_gmem(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, id->d_pss, id->d_pss2, id->chunk_count);
         launch_3pass_proc_true(
             id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_input, d_output, d_mask, id->d_pss2, true, id->d_popc, chunk_length,
-            id->chunk_count);
+            element_count);
     });
     return time;
 }
