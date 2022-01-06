@@ -16,6 +16,7 @@ struct intermediate_data {
     size_t chunk_count;
     size_t max_stream_count;
     size_t cub_intermediate_size;
+    size_t intermediate_size_3pass;
     cudaEvent_t dummy_event_1;
     cudaEvent_t dummy_event_2;
     cudaEvent_t start;
@@ -29,7 +30,7 @@ struct intermediate_data {
         this->chunk_count = ceildiv(element_count, chunk_length);
         this->max_stream_count = max_stream_count;
         uint8_t* null = (uint8_t*)NULL;
-        size_t intermediate_size_3pass = chunk_count * sizeof(uint32_t);
+        intermediate_size_3pass = chunk_count * sizeof(uint32_t);
         if (chunk_length > 32) {
             // for the streaming kernel
             intermediate_size_3pass = ceildiv(element_count, 32) * sizeof(uint32_t);
@@ -71,6 +72,9 @@ struct intermediate_data {
         val_to_gpu(last_mask_byte_ptr, last_mask_byte);
         CUDA_TRY(cudaMemset(d_out_count, 0, (max_stream_count + 1) * sizeof(*d_out_count)));
         CUDA_TRY(cudaMemset(d_output, 0, element_count * sizeof(T)));
+        CUDA_TRY(cudaMemset(d_pss, 0, intermediate_size_3pass));
+        CUDA_TRY(cudaMemset(d_pss2, 0, intermediate_size_3pass));
+        CUDA_TRY(cudaMemset(d_popc, 0, intermediate_size_3pass));
         if (this->element_count >= element_count || this->chunk_length >= chunk_length) return;
         error("sizes in intermediate data are smaller than the ones "
               "submitted "
@@ -103,6 +107,7 @@ float bench1_base_variant(
     id->prepare_buffers(element_count, chunk_length, d_output, d_mask);
     float time = 0;
     CUDA_TIME_FORCE_ENABLED(id->start, id->stop, 0, &time, {
+        element_count = ceil2mult(element_count, 8);
         launch_3pass_popc_none(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_mask, id->d_pss, chunk_length, element_count);
         launch_3pass_pss_gmem(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, id->d_pss, id->chunk_count, id->d_out_count);
         launch_3pass_pss2_gmem(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, id->d_pss, id->d_pss2, id->chunk_count);
@@ -142,7 +147,6 @@ float bench3_3pass_streaming(
     id->prepare_buffers(element_count, chunk_length, d_output, d_mask);
     // since bymask bits are padded to zero in the last byte, we can
     // increase element_count to a multiple of 8
-    element_count = ceil2mult(element_count, 8);
     float time = 0;
     if (stream_count < 1) {
         error("stream_count must be >= 1");
@@ -154,6 +158,7 @@ float bench3_3pass_streaming(
     if (stream_count != p2_sc) error("stream_count must be a power of 2");
 
     CUDA_TIME_FORCE_ENABLED(id->start, id->stop, 0, &time, {
+        element_count = ceil2mult(element_count, 8);
         CUDA_TRY(cudaMemset(id->d_out_count, 0x00, sizeof(uint32_t) * (stream_count + 1)));
 
         const uint64_t skip_block_size = 1024;
@@ -237,6 +242,7 @@ float bench4_3pass_optimized_read_skipping_partial_pss(
     id->prepare_buffers(element_count, chunk_length, d_output, d_mask);
     float time = 0;
     CUDA_TIME_FORCE_ENABLED(id->start, id->stop, 0, &time, {
+        element_count = ceil2mult(element_count, 8);
         launch_3pass_popc_none(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_mask, id->d_popc, chunk_length, element_count);
         cudaMemcpy(id->d_pss, id->d_popc, id->chunk_count * sizeof(uint32_t), cudaMemcpyDeviceToDevice);
         launch_3pass_pss_gmem(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, id->d_pss, id->chunk_count, id->d_out_count);
@@ -254,6 +260,7 @@ float bench5_3pass_optimized_read_skipping_two_phase_pss(
     id->prepare_buffers(element_count, chunk_length, d_output, d_mask);
     float time = 0;
     CUDA_TIME_FORCE_ENABLED(id->start, id->stop, 0, &time, {
+        element_count = ceil2mult(element_count, 8);
         launch_3pass_popc_none(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_mask, id->d_popc, chunk_length, element_count);
         cudaMemcpy(id->d_pss, id->d_popc, id->chunk_count * sizeof(uint32_t), cudaMemcpyDeviceToDevice);
         launch_3pass_pss_gmem(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, id->d_pss, id->chunk_count, id->d_out_count);
@@ -272,6 +279,7 @@ float bench6_3pass_optimized_read_skipping_cub_pss(
     id->prepare_buffers(element_count, chunk_length, d_output, d_mask);
     float time = 0;
     CUDA_TIME_FORCE_ENABLED(id->start, id->stop, 0, &time, {
+        element_count = ceil2mult(element_count, 8);
         launch_3pass_popc_none(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_mask, id->d_popc, chunk_length, element_count);
         cudaMemcpy(id->d_pss, id->d_popc, id->chunk_count * sizeof(uint32_t), cudaMemcpyDeviceToDevice);
 

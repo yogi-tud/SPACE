@@ -333,12 +333,13 @@ __global__ void kernel_3pass_proc_true_striding(
             smem[threadIdx.x] = 0;
         }
         __syncwarp();
-        for (int i = 0; i < CUDA_WARP_SIZE; i++) {
+        for (int i = 0; i < CUDA_WARP_SIZE && tid + i < stop_idx; i++) {
             uint32_t s = smem[threadIdx.x - warp_offset + i];
             uint32_t out_idx_me = __popc(s >> (CUDA_WARP_SIZE - warp_offset));
             bool v = (s >> ((CUDA_WARP_SIZE - 1) - warp_offset)) & 0b1;
             if (v) {
-                output[smem_out_idx[warp_index] + out_idx_me] = input[tid + (i * CUDA_WARP_SIZE)];
+                uint32_t out_idx = smem_out_idx[warp_index] + out_idx_me;
+                output[out_idx] = input[tid + (i * CUDA_WARP_SIZE)];
             }
             if (warp_offset == (CUDA_WARP_SIZE - 1)) {
                 smem_out_idx[warp_index] += out_idx_me + v;
