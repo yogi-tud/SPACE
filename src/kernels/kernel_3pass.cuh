@@ -303,7 +303,7 @@ __global__ void kernel_3pass_proc_true_striding(
     }
     for (uint32_t tid = base_idx + warp_offset; tid < stop_idx; tid += stride) {
         // check chunk popcount at base_idx for potential skipped
-        if (popc[base_idx / stride] == 0) {
+        if (popc && popc[base_idx / stride] == 0) {
             base_idx += stride;
             continue;
         }
@@ -435,10 +435,14 @@ float launch_3pass_proc_true(
 
 template <typename T, bool complete_pss>
 __global__ void kernel_3pass_proc_none_monolithic(
-    T* input, T* output, uint8_t* mask, uint32_t* pss, uint32_t chunk_length8, uint32_t element_count, uint32_t chunk_count_p2)
+    T* input, T* output, uint8_t* mask, uint32_t* pss, uint32_t* popc, uint32_t chunk_length8, uint32_t element_count, uint32_t chunk_count_p2)
 {
     uint32_t tid = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (tid * chunk_length8 * 8 >= element_count) {
+        return;
+    }
+    // check chunk popcount at chunk tid for potential skipped
+    if (popc && popc[tid] == 0) {
         return;
     }
     uint32_t out_idx;
@@ -463,10 +467,14 @@ __global__ void kernel_3pass_proc_none_monolithic(
 
 template <typename T, bool complete_pss>
 __global__ void kernel_3pass_proc_none_striding(
-    T* input, T* output, uint8_t* mask, uint32_t* pss, uint32_t chunk_length8, uint32_t element_count, uint32_t chunk_count_p2)
+    T* input, T* output, uint8_t* mask, uint32_t* pss, uint32_t* popc, uint32_t chunk_length8, uint32_t element_count, uint32_t chunk_count_p2)
 {
     uint32_t chunk_count = ceildiv(element_count, chunk_length8 * 8);
     for (uint32_t tid = (blockIdx.x * blockDim.x) + threadIdx.x; tid < chunk_count; tid += blockDim.x * gridDim.x) {
+        // check chunk popcount at chunk tid for potential skipped
+        if (popc && popc[tid] == 0) {
+            continue;
+        }
         uint32_t out_idx;
         if (complete_pss) {
             out_idx = pss[tid];
@@ -500,6 +508,7 @@ float launch_3pass_proc_none(
     uint8_t* d_mask,
     uint32_t* d_pss,
     bool full_pss,
+    uint32_t* d_popc,
     uint32_t chunk_length,
     uint32_t element_count)
 {
@@ -515,13 +524,13 @@ float launch_3pass_proc_none(
             CUDA_TIME(
                 ce_start, ce_stop, 0, &time,
                 (kernel_3pass_proc_none_monolithic<T, true>
-                 <<<blockcount, threadcount>>>(d_input, d_output, d_mask, d_pss, chunk_length / 8, element_count, 0)));
+                 <<<blockcount, threadcount>>>(d_input, d_output, d_mask, d_pss, d_popc, chunk_length / 8, element_count, 0)));
         }
         else {
             CUDA_TIME(
                 ce_start, ce_stop, 0, &time,
                 (kernel_3pass_proc_none_monolithic<T, false>
-                 <<<blockcount, threadcount>>>(d_input, d_output, d_mask, d_pss, chunk_length / 8, element_count, chunk_count_p2)));
+                 <<<blockcount, threadcount>>>(d_input, d_output, d_mask, d_pss, d_popc, chunk_length / 8, element_count, chunk_count_p2)));
         }
     }
     else {
@@ -529,13 +538,13 @@ float launch_3pass_proc_none(
             CUDA_TIME(
                 ce_start, ce_stop, 0, &time,
                 (kernel_3pass_proc_none_striding<T, true>
-                 <<<blockcount, threadcount>>>(d_input, d_output, d_mask, d_pss, chunk_length / 8, element_count, 0)));
+                 <<<blockcount, threadcount>>>(d_input, d_output, d_mask, d_pss, d_popc, chunk_length / 8, element_count, 0)));
         }
         else {
             CUDA_TIME(
                 ce_start, ce_stop, 0, &time,
                 (kernel_3pass_proc_none_striding<T, false>
-                 <<<blockcount, threadcount>>>(d_input, d_output, d_mask, d_pss, chunk_length / 8, element_count, chunk_count_p2)));
+                 <<<blockcount, threadcount>>>(d_input, d_output, d_mask, d_pss, d_popc, chunk_length / 8, element_count, chunk_count_p2)));
         }
     }
     return time;

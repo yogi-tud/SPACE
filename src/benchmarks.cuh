@@ -111,22 +111,25 @@ float bench1_base_variant(
         launch_3pass_pss_gmem(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, id->d_pss, id->chunk_count, id->d_out_count);
         launch_3pass_pss2_gmem(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, id->d_pss, id->d_pss2, id->chunk_count);
         launch_3pass_proc_none(
-            id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_input, d_output, d_mask, id->d_pss2, true, chunk_length, element_count);
+            id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_input, d_output, d_mask, id->d_pss2, true, NULL, chunk_length, element_count);
     });
     return time;
 }
 
 template <class T>
-float bench2_base_variant_shared_mem(
+float bench2_base_variant_skipping(
     intermediate_data* id, T* d_input, uint8_t* d_mask, T* d_output, size_t element_count, size_t chunk_length, int block_size, int grid_size)
 {
     id->prepare_buffers(element_count, chunk_length, d_output, d_mask);
     float time = 0;
-    CUDA_TIME_FORCE_ENABLED(
-        id->start, id->stop, 0, &time,
-        {
-            // TODO
-        });
+    CUDA_TIME_FORCE_ENABLED(id->start, id->stop, 0, &time, {
+        element_count = ceil2mult(element_count, 8);
+        launch_3pass_popc_none(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_mask, id->d_pss, chunk_length, element_count);
+        launch_3pass_pss_gmem(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, id->d_pss, id->chunk_count, id->d_out_count);
+        launch_3pass_pss2_gmem(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, id->d_pss, id->d_pss2, id->chunk_count);
+        launch_3pass_proc_none(
+            id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_input, d_output, d_mask, id->d_pss2, true, id->d_pss, chunk_length, element_count);
+    });
     return time;
 }
 
@@ -231,16 +234,23 @@ float bench3_3pass_streaming(
 }
 
 template <class T>
-float bench4_naive_chunk_per_thread_skipping(
+float bench4_optimized_read_non_skipping_cub_pss(
     intermediate_data* id, T* d_input, uint8_t* d_mask, T* d_output, size_t element_count, size_t chunk_length, int block_size, int grid_size)
 {
     id->prepare_buffers(element_count, chunk_length, d_output, d_mask);
     float time = 0;
-    CUDA_TIME_FORCE_ENABLED(
-        id->start, id->stop, 0, &time,
-        {
-            // TODO
-        });
+    CUDA_TIME_FORCE_ENABLED(id->start, id->stop, 0, &time, {
+        element_count = ceil2mult(element_count, 8);
+        launch_3pass_popc_none(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_mask, id->d_pss, chunk_length, element_count);
+
+        launch_3pass_pssskip(0, id->d_pss, id->d_out_count, id->chunk_count);
+        CUDA_TRY(cub::DeviceScan::ExclusiveSum(id->d_cub_intermediate, id->cub_intermediate_size, id->d_pss, id->d_pss2, id->chunk_count));
+        launch_3pass_pssskip(0, id->d_pss, id->d_out_count, id->chunk_count);
+
+        launch_3pass_proc_true(
+            id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_input, d_output, d_mask, id->d_pss2, true, NULL, chunk_length,
+            element_count);
+    });
     return time;
 }
 

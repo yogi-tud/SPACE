@@ -65,29 +65,23 @@ int main(int argc, char** argv)
     std::vector<std::pair<std::string, std::function<float()>>> benchs;
 
     benchs.emplace_back("bench1_base_variant", [&]() { return bench1_base_variant(&id, d_input, d_mask, d_output, col.size(), 1024, 256, 1024); });
-
-    /* benchs.emplace_back("bench2_base_variant_shared_mem", [&]() {
-         return bench2_base_variant_shared_mem(&id, d_input, d_mask, d_output, col.size(), 1024, 256, 1024);
-     });*/
-
+    benchs.emplace_back("bench2_base_variant_skipping", [&]() {
+         return bench2_base_variant_skipping(&id, d_input, d_mask, d_output, col.size(), 1024, 256, 1024);
+    });
     benchs.emplace_back(
         "bench3_3pass_streaming", [&]() { return bench3_3pass_streaming(&id, d_input, d_mask, d_output, col.size(), 1024, 256, 1024); });
-
-    /* benchs.emplace_back("bench4_naive_chunk_per_thread_skipping", [&]() {
-         return bench4_naive_chunk_per_thread_skipping(&id, d_input, d_mask, d_output, col.size(), 1024, 256, 1024);
-     });*/
-
+    benchs.emplace_back("bench4_optimized_read_non_skipping_cub_pss", [&]() {
+         return bench4_optimized_read_non_skipping_cub_pss(&id, d_input, d_mask, d_output, col.size(), 1024, 256, 1024);
+    });
     benchs.emplace_back("bench5_3pass_optimized_read_skipping_partial_pss", [&]() {
         return bench5_3pass_optimized_read_skipping_partial_pss(&id, d_input, d_mask, d_output, col.size(), 1024, 256, 1024);
     });
     benchs.emplace_back("bench6_3pass_optimized_read_skipping_two_phase_pss", [&]() {
         return bench6_3pass_optimized_read_skipping_two_phase_pss(&id, d_input, d_mask, d_output, col.size(), 1024, 256, 1024);
     });
-
     benchs.emplace_back("bench7_3pass_optimized_read_skipping_cub_pss", [&]() {
         return bench7_3pass_optimized_read_skipping_cub_pss(&id, d_input, d_mask, d_output, col.size(), 1024, 256, 1024);
     });
-
     benchs.emplace_back("bench8_cub_flagged", [&]() { return bench8_cub_flagged(&id, d_input, d_mask, d_output, col.size()); });
 
     // run benchmark
