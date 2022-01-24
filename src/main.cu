@@ -32,7 +32,7 @@ int main(int argc, char** argv)
     string dataset = "";
 
     if (argc > 1) {
-        int dataset_pick = atoi(argv[1]);
+         dataset_pick = atoi(argv[1]);
         printf("setting dataset to %i\n", dataset_pick);
 
     }
@@ -78,21 +78,25 @@ int main(int argc, char** argv)
             one_count=col.size()*sel;
             dataset="uniform";
         break;
-            one_count=col.size()*sel;
+
         case 1: generate_mask_zipf(pred,one_count,0,col.size());
             genRandomInts(ele_count, 45000);
+            one_count=col.size()*sel;
             dataset="zipf";
         break;
+
         case 2: pred = gen_predicate(col, +[](float f) { return f > 55; }, &one_count).data();
             dataset="arade";
             load_csv(csv_path, {3}, col);
+
         case 3: generate_mask_burst(pred,one_count,0,col.size(),1);
+            one_count=col.size()*sel;
             genRandomInts(ele_count, 45000);
             dataset="burst";
         break;
-        default:generate_mask_uniform(pred, 0, col.size(), sel);
-            break;
+
     }
+    cout<<"DATASET: "<<dataset<<endl;
 
     CUDA_TRY(cudaSetDevice(1));
 
@@ -134,8 +138,8 @@ int main(int argc, char** argv)
     std::string gridblock ="";
 
     //set up benchmarks for different cuda configs and algorithm on same data set
-        for(size_t blocksize = 1024; blocksize <=1024 ; blocksize = blocksize * 2 ) {
-        for (size_t gridsize = 1024; gridsize <= 8096; gridsize = gridsize * 2) {
+        for(size_t blocksize = 256; blocksize <=1024 ; blocksize = blocksize * 2 ) {
+        for (size_t gridsize = 1024; gridsize <= 32768; gridsize = gridsize * 2) {
 
 
 
@@ -193,12 +197,14 @@ int main(int argc, char** argv)
 
      string current_path (std::filesystem::current_path());
 
+
+
     string device = "_rtx8000";
     //string filename = "../data/"+dataset+device+".txt";
    // string filename = "/home/fett/edbt/EDBT_2022/data"+dataset+device+".txt";
     string filename = current_path+"/"+dataset+device+".txt";
     //string filename = dataset+device+".txt";
-    std::cout << "Current path is " << current_path << '\n'; // (1)
+    //std::cout << "Current path is " << current_path << '\n'; // (1)
 
 
 
