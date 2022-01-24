@@ -175,12 +175,18 @@ static void write_bench_file (string filename,
     if(myfile.peek() == std::ifstream::traits_type::eof())
     {
         cout<<"PEEK PERFORMANCE!!"<<endl;
-        myfile.seekg (0, ios::end);
-        myfile << "datasize[MiB];dataset;selectivity;kernel;threads;blocks;time in ms;throughput [GiB / s ];" << endl;
+        //myfile.close();
 
+
+
+        ofstream myfile_out(filename);
+        myfile_out << "datasize[MiB];dataset;selectivity;kernel;threads;blocks;time in ms;throughput [GiB / s ];" << endl;
+        myfile_out.close();
 
     }
 
+
+    //myfile.open(filename);
     myfile.seekg (0, ios::end);
 
 

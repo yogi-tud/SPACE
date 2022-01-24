@@ -193,9 +193,9 @@ int main(int argc, char** argv)
 
 
     string device = "_rtx8000";
-    //string filename = "../data/"+dataset+device+".txt";
-    string filename = dataset+device+".txt";
-    //std::cout << "Current path is " << std::filesystem::current_path() << '\n'; // (1)
+    string filename = "../data/"+dataset+device+".txt";
+   // string filename = dataset+device+".txt";
+    std::cout << "Current path is " << std::filesystem::current_path() << '\n'; // (1)
 
 
 

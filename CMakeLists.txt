@@ -36,11 +36,11 @@ set(SOURCES
     src/kernels/data_generator.cuh
 )
 
-add_custom_target(
-    cub_fix 
-    sed -i "${CMAKE_CURRENT_LIST_DIR}/deps/cub/cub/iterator/tex_ref_input_iterator.cuh" -e "s|\\(^[^/]*\\)words\\[i\\] = tex1Dfetch(ref, (tex_offset \\* TEXTURE_MULTIPLE) + i);|\\1//words[i] = tex1Dfetch(ref, (tex_offset * TEXTURE_MULTIPLE) + i);|"
-    VERBATIM
-)
+#add_custom_target(
+ #   cub_fix
+ #   sed -i "${CMAKE_CURRENT_LIST_DIR}/deps/cub/cub/iterator/tex_ref_input_iterator.cuh" -e "s|\\(^[^/]*\\)words\\[i\\] = tex1Dfetch(ref, (tex_offset \\* TEXTURE_MULTIPLE) + i);|\\1//words[i] = tex1Dfetch(ref, (tex_offset * TEXTURE_MULTIPLE) + i);|"
+ #   VERBATIM
+#)
 add_executable(gpu_compressstore2 ${SOURCES})
 
 option(AVXPOWER "use avx512-ish" OFF)
@@ -53,4 +53,4 @@ set_property(TARGET gpu_compressstore2 PROPERTY CUDA_ARCHITECTURES 75 61)
 
 target_include_directories(gpu_compressstore2 PRIVATE ${INCLUDES})
 target_include_directories(gpu_compressstore2 BEFORE PRIVATE ${PREFIX_INCLUDES})
-add_dependencies(gpu_compressstore2 cub_fix)
+#add_dependencies(gpu_compressstore2 cub_fix)
