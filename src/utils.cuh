@@ -170,6 +170,7 @@ static void write_bench_file (string filename,
     fstream myfile(filename,std::ios_base::app | std::ios_base::trunc);
     myfile.open(filename);
 
+    cout<<" FILE TO WRITE: "<<filename<<endl;
 
     //only write header if output file is empty
     if(myfile.peek() == std::ifstream::traits_type::eof())
