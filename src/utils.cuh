@@ -151,8 +151,8 @@ static void write_benchmark(size_t datasize, string dataset, float selectivity, 
        // <<thread_dim<<";"
       //  <<block_dim<<";"
         <<runtime_ms<<";"
-        <<((((total_datasize * sizeof(uint64_t) / MEBIBYTE) / runtime_ms )))/1.024<<endl;
-
+        <<(((((total_datasize * sizeof(uint64_t) +(total_datasize / 8)) / MEBIBYTE) / runtime_ms )))/1.024<<endl;
+        //mask size added for throughput
 
 
 
@@ -176,26 +176,21 @@ static void write_bench_file (string filename,
     if(myfile.peek() == std::ifstream::traits_type::eof())
     {
         cout<<"PEEK PERFORMANCE!!"<<endl;
-        //myfile.close();
+
 
 
 
         ofstream myfile_out(filename);
-        myfile_out.exceptions ( ofstream::badbit ); // No need to check failbit
-        try {
-            myfile_out.open (filename);
+
             myfile_out << "datasize[MiB];dataset;selectivity;kernel;threads;blocks;time in ms;throughput [GiB / s ];" << endl;
 
-        }
-        catch (const ifstream::failure& e) {
-            cout << "Exception opening/reading file" <<endl;
-        }
+
         myfile_out.close();
 
     }
 
-
-    //myfile.open(filename);
+    myfile.close();
+    myfile.open(filename);
     myfile.seekg (0, ios::end);
 
 

@@ -135,7 +135,7 @@ int main(int argc, char** argv)
 
     //set up benchmarks for different cuda configs and algorithm on same data set
         for(size_t blocksize = 1024; blocksize <=1024 ; blocksize = blocksize * 2 ) {
-        for (size_t gridsize = 8096; gridsize <= 8096; gridsize = gridsize * 2) {
+        for (size_t gridsize = 1024; gridsize <= 8096; gridsize = gridsize * 2) {
 
 
 
