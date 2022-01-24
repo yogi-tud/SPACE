@@ -2,11 +2,13 @@
 #include <vector>
 #include <cstdint>
 #include <iostream>
+#include <fstream>
+#include <string>
 #include <stdio.h>
 #include <src/kernels/data_generator.cuh>
 
 #define UNUSED(VAR) (void)(true ? (void)0 : ((void)(VAR)))
-
+using namespace std;
 void error(const char* error)
 {
     fputs(error, stderr);
@@ -119,4 +121,74 @@ template <typename T> std::vector<uint8_t> gen_predicate(const std::vector<T>& c
     }
     if (one_count) *one_count = one_count_loc;
     return predicate_bitmask;
+}
+
+static std::vector<uint64_t> genRandomInts(size_t elements, size_t maximum)
+{
+    std::vector<uint64_t> randoms(elements);
+    for (size_t i = 0; i < elements; i++)
+    {
+        randoms[i] = rand() % maximum;
+
+
+    }
+
+
+    return randoms;
+}
+
+static void write_benchmark(size_t datasize, string dataset, float selectivity, fstream &myfile, float runtime_ms, string kernel)
+{
+    size_t MEBIBYTE = (1<<20);
+
+    size_t total_datasize= datasize;
+
+    myfile
+        <<datasize * sizeof(uint64_t) / MEBIBYTE << ";"   //datasize in MIB
+        <<dataset<< ";"
+        <<selectivity<< ";"
+        <<kernel<<";"                                       //kernel name
+       // <<thread_dim<<";"
+      //  <<block_dim<<";"
+        <<runtime_ms<<";"
+        <<((((total_datasize * sizeof(uint64_t) / MEBIBYTE) / runtime_ms )))/1.024<<endl;
+
+
+
+
+}
+
+static void write_bench_file (string filename,
+    std::vector<std::pair<std::string, float>> benchs,
+                             std::vector<float> timings,
+                             size_t iterations,
+                             size_t datasize,
+                             string dataset,
+                             float selectivity              )
+{
+
+    fstream myfile(filename,std::ios_base::app | std::ios_base::trunc);
+    myfile.open(filename);
+
+
+    //only write header if output file is empty
+    if(myfile.peek() == std::ifstream::traits_type::eof())
+    {
+        cout<<"PEEK PERFORMANCE!!"<<endl;
+        myfile.seekg (0, ios::end);
+        myfile << "datasize[MiB];dataset;selectivity;kernel;threads;blocks;time in ms;throughput [GiB / s ];" << endl;
+
+
+    }
+
+    myfile.seekg (0, ios::end);
+
+
+
+    for (int i = 0; i < benchs.size(); i++) {
+        std::cout << "benchmark " << benchs[i].first << " time (ms): " << (double)timings[i] / iterations << std::endl;
+        write_benchmark(datasize,dataset,selectivity,myfile,(double)timings[i] / (double) iterations,benchs[i].first);
+    }
+
+    myfile.close();
 }

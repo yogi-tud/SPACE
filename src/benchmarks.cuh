@@ -23,6 +23,8 @@ struct intermediate_data {
     cudaEvent_t stop;
     cudaStream_t* streams;
     cudaEvent_t* stream_events;
+
+
     intermediate_data(size_t element_count, int chunk_length, int max_stream_count)
     {
         this->chunk_length = chunk_length;
@@ -101,6 +103,59 @@ struct intermediate_data {
 
 template <class T>
 float bench1_base_variant(
+    intermediate_data* id, std::vector<std::pair<std::string, float>> &subtimings, T* d_input, uint8_t* d_mask, T* d_output, size_t element_count, size_t chunk_length, int block_size, int grid_size)
+{
+    id->prepare_buffers(element_count, chunk_length, d_output, d_mask);
+    float time = 0;
+    cudaEvent_t substart;
+    cudaEvent_t subend;
+    CUDA_TRY( cudaEventCreate(&substart));
+    CUDA_TRY( cudaEventCreate(&subend));
+    float subtiming=0;
+    string gridblock ="";
+
+
+
+    CUDA_TIME_FORCE_ENABLED(id->start, id->stop, 0, &time, {
+
+        element_count = ceil2mult(element_count, 8);
+        CUDA_TRY(cudaEventRecord((substart)));
+            launch_3pass_popc_none(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_mask, id->d_pss, chunk_length, element_count);
+        CUDA_TRY(cudaEventRecord((subend)));
+        CUDA_TRY(cudaEventSynchronize((subend)));
+        CUDA_TRY(cudaEventElapsedTime((&subtiming), (substart), (subend)));
+        gridblock = ";"+std::to_string(block_size)+";"+std::to_string(grid_size);
+        subtimings.emplace_back("launch_3pass_popc_none"+gridblock,subtiming);
+
+        CUDA_TRY(cudaEventRecord((substart)));
+        launch_3pass_pss_gmem(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, id->d_pss, id->chunk_count, id->d_out_count);
+
+        CUDA_TRY(cudaEventRecord((subend)));
+        CUDA_TRY(cudaEventSynchronize((subend)));
+        CUDA_TRY(cudaEventElapsedTime((&subtiming), (substart), (subend)));
+        subtimings.emplace_back("launch_3pass_pss_gmem"+gridblock,subtiming);
+
+        CUDA_TRY(cudaEventRecord((substart)));
+        launch_3pass_pss2_gmem(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, id->d_pss, id->d_pss2, id->chunk_count);
+
+        CUDA_TRY(cudaEventRecord((subend)));
+        CUDA_TRY(cudaEventSynchronize((subend)));
+        CUDA_TRY(cudaEventElapsedTime((&subtiming), (substart), (subend)));
+        subtimings.emplace_back("launch_3pass_pss2_gmem"+gridblock,subtiming);
+
+        CUDA_TRY(cudaEventRecord((substart)));
+        launch_3pass_proc_none(
+            id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_input, d_output, d_mask, id->d_pss2, true, NULL, chunk_length, element_count);
+                                CUDA_TRY(cudaEventRecord((subend)));
+                                CUDA_TRY(cudaEventSynchronize((subend)));
+                                CUDA_TRY(cudaEventElapsedTime((&subtiming), (substart), (subend)));
+        subtimings.emplace_back("launch_3pass_pss2_gmem"+gridblock,subtiming);
+    });
+    return time;
+}
+
+template <class T>
+float bench1_base_variant(
     intermediate_data* id, T* d_input, uint8_t* d_mask, T* d_output, size_t element_count, size_t chunk_length, int block_size, int grid_size)
 {
     id->prepare_buffers(element_count, chunk_length, d_output, d_mask);
@@ -111,7 +166,72 @@ float bench1_base_variant(
         launch_3pass_pss_gmem(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, id->d_pss, id->chunk_count, id->d_out_count);
         launch_3pass_pss2_gmem(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, id->d_pss, id->d_pss2, id->chunk_count);
         launch_3pass_proc_none(
-            id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_input, d_output, d_mask, id->d_pss2, true, NULL, chunk_length, element_count);
+        id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_input, d_output, d_mask, id->d_pss2, true, NULL, chunk_length,
+        element_count);
+    });
+    return time;
+}
+
+template <class T>
+float bench2_base_variant_skipping(
+    intermediate_data* id,std::vector<std::pair<std::string, float>> &subtimings, T* d_input, uint8_t* d_mask, T* d_output, size_t element_count, size_t chunk_length, int block_size, int grid_size)
+{
+    id->prepare_buffers(element_count, chunk_length, d_output, d_mask);
+    float time = 0;
+    cudaEvent_t substart;
+    cudaEvent_t subend;
+    CUDA_TRY( cudaEventCreate(&substart));
+    CUDA_TRY( cudaEventCreate(&subend));
+    float subtiming=0;
+    string gridblock ="";
+
+
+
+    CUDA_TIME_FORCE_ENABLED(id->start, id->stop, 0, &time, {
+
+
+        element_count = ceil2mult(element_count, 8);
+
+        CUDA_TRY(cudaEventRecord((substart)));
+        launch_3pass_popc_none(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_mask, id->d_pss, chunk_length, element_count);
+        CUDA_TRY(cudaEventRecord((subend)));
+        CUDA_TRY(cudaEventSynchronize((subend)));
+        CUDA_TRY(cudaEventElapsedTime((&subtiming), (substart), (subend)));
+        gridblock = ";"+std::to_string(block_size)+";"+std::to_string(grid_size);
+        subtimings.emplace_back("launch_3pass_popc_none"+gridblock,subtiming);
+
+
+        CUDA_TRY(cudaEventRecord((substart)));
+        launch_3pass_pss_gmem(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, id->d_pss, id->chunk_count, id->d_out_count);
+        CUDA_TRY(cudaEventRecord((subend)));
+        CUDA_TRY(cudaEventSynchronize((subend)));
+        CUDA_TRY(cudaEventElapsedTime((&subtiming), (substart), (subend)));
+        gridblock = ";"+std::to_string(block_size)+";"+std::to_string(grid_size);
+        subtimings.emplace_back("launch_3pass_pss_gmem"+gridblock,subtiming);
+
+        CUDA_TRY(cudaEventRecord((substart)));
+        launch_3pass_pss2_gmem(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, id->d_pss, id->d_pss2, id->chunk_count);
+        CUDA_TRY(cudaEventRecord((subend)));
+        CUDA_TRY(cudaEventSynchronize((subend)));
+        CUDA_TRY(cudaEventElapsedTime((&subtiming), (substart), (subend)));
+        gridblock = ";"+std::to_string(block_size)+";"+std::to_string(grid_size);
+        subtimings.emplace_back("launch_3pass_pss2_gmem"+gridblock,subtiming);
+
+
+        CUDA_TRY(cudaEventRecord((substart)));
+        launch_3pass_proc_none(
+        id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_input, d_output, d_mask, id->d_pss2, true, id->d_pss, chunk_length, element_count);
+
+        CUDA_TRY(cudaEventRecord((subend)));
+        CUDA_TRY(cudaEventSynchronize((subend)));
+        CUDA_TRY(cudaEventElapsedTime((&subtiming), (substart), (subend)));
+        gridblock = ";"+std::to_string(block_size)+";"+std::to_string(grid_size);
+        subtimings.emplace_back("launch_3pass_proc_none"+gridblock,subtiming);
+
+
+
+
+
     });
     return time;
 }
@@ -128,10 +248,12 @@ float bench2_base_variant_skipping(
         launch_3pass_pss_gmem(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, id->d_pss, id->chunk_count, id->d_out_count);
         launch_3pass_pss2_gmem(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, id->d_pss, id->d_pss2, id->chunk_count);
         launch_3pass_proc_none(
-            id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_input, d_output, d_mask, id->d_pss2, true, id->d_pss, chunk_length, element_count);
+        id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_input, d_output, d_mask, id->d_pss2, true, id->d_pss, chunk_length, element_count);
     });
     return time;
 }
+
+
 
 template <class T>
 float bench3_3pass_streaming(
@@ -241,9 +363,11 @@ float bench4_optimized_read_non_skipping_cub_pss(
     float time = 0;
     CUDA_TIME_FORCE_ENABLED(id->start, id->stop, 0, &time, {
         element_count = ceil2mult(element_count, 8);
+
         launch_3pass_popc_none(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_mask, id->d_pss, chunk_length, element_count);
 
         launch_3pass_pssskip(0, id->d_pss, id->d_out_count, id->chunk_count);
+
         CUDA_TRY(cub::DeviceScan::ExclusiveSum(id->d_cub_intermediate, id->cub_intermediate_size, id->d_pss, id->d_pss2, id->chunk_count));
         launch_3pass_pssskip(0, id->d_pss, id->d_out_count, id->chunk_count);
 
