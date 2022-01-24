@@ -180,7 +180,15 @@ static void write_bench_file (string filename,
 
 
         ofstream myfile_out(filename);
-        myfile_out << "datasize[MiB];dataset;selectivity;kernel;threads;blocks;time in ms;throughput [GiB / s ];" << endl;
+        myfile_out.exceptions ( ofstream::badbit ); // No need to check failbit
+        try {
+            myfile_out.open (filename);
+            myfile_out << "datasize[MiB];dataset;selectivity;kernel;threads;blocks;time in ms;throughput [GiB / s ];" << endl;
+
+        }
+        catch (const ifstream::failure& e) {
+            cout << "Exception opening/reading file" <<endl;
+        }
         myfile_out.close();
 
     }
