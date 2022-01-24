@@ -1,8 +1,20 @@
 #running a number of experiments
 # parameters: dataset selectivity datasize (input col only in MIB)
 # uniform, zipf, csv, burst (0,1,2,3)
-awk '
-  BEGIN{
-    for (i = 0.01; i < 1; i+ = 0.02)
-    ./gpu_compressstore2 0 i 4096
-  }'
+maxmb="4096"
+dataset="0"
+
+./build/gpu_compressstore2 $dataset 0.02 4096
+./build/gpu_compressstore2 $dataset 0.04 4096
+./build/gpu_compressstore2 $dataset 0.06 4096
+./build/gpu_compressstore2 $dataset 0.08 4096
+./build/gpu_compressstore2 $dataset 0.10 4096
+./build/gpu_compressstore2 $dataset 0.12 4096
+./build/gpu_compressstore2 $dataset 0.14 4096
+./build/gpu_compressstore2 $dataset 0.16 4096
+./build/gpu_compressstore2 $dataset 0.18 4096
+./build/gpu_compressstore2 $dataset 0.20 4096
+./build/gpu_compressstore2 $dataset 0.22 4096
+./build/gpu_compressstore2 $dataset 0.24 4096
+
+#dataset="1"

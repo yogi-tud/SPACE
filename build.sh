@@ -1,7 +1,8 @@
 script_dir="$(dirname "$(readlink -f "$0")")"
 
 build_dir="$script_dir/build"
-
+data_dir="$script_dir/data"
+mkdir -p "$script_dir"
 mkdir -p "$build_dir"
 cd "$build_dir"
 #rm -rf *

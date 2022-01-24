@@ -38,7 +38,7 @@ int main(int argc, char** argv)
     }
     if(argc > 2)
     {
-        float sel = atof(argv[2]);
+         sel = atof(argv[2]);
         cout<<"SELECTIVITY: "<<sel<<endl;
     }
     if(argc > 3)
