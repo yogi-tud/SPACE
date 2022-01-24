@@ -135,7 +135,7 @@ int main(int argc, char** argv)
 
     //set up benchmarks for different cuda configs and algorithm on same data set
         for(size_t blocksize = 1024; blocksize <=1024 ; blocksize = blocksize * 2 ) {
-        for (size_t gridsize = 2048; gridsize <= 2048; gridsize = gridsize * 2) {
+        for (size_t gridsize = 8096; gridsize <= 8096; gridsize = gridsize * 2) {
 
 
 
@@ -191,11 +191,14 @@ int main(int argc, char** argv)
     }
     std::cout<<"Number of experiments: "<<benchs.size()<<  std::endl;
 
+     string current_path (std::filesystem::current_path());
 
     string device = "_rtx8000";
-  //  string filename = "../data/"+dataset+device+".txt";
-    string filename = dataset+device+".txt";
-    std::cout << "Current path is " << std::filesystem::current_path() << '\n'; // (1)
+    //string filename = "../data/"+dataset+device+".txt";
+   // string filename = "/home/fett/edbt/EDBT_2022/data"+dataset+device+".txt";
+    string filename = current_path+"/"+dataset+device+".txt";
+    //string filename = dataset+device+".txt";
+    std::cout << "Current path is " << current_path << '\n'; // (1)
 
 
 

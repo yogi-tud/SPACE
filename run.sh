@@ -16,5 +16,9 @@ dataset="0"
 ./build/gpu_compressstore2 $dataset 0.20 4096
 ./build/gpu_compressstore2 $dataset 0.22 4096
 ./build/gpu_compressstore2 $dataset 0.24 4096
+./build/gpu_compressstore2 $dataset 0.26 4096
+./build/gpu_compressstore2 $dataset 0.28 4096
+./build/gpu_compressstore2 $dataset 0.3 4096
+./build/gpu_compressstore2 $dataset 0.32 4096
 
 #dataset="1"
