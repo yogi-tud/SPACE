@@ -1,2 +1,13 @@
-/usr/bin/cmake -DCMAKE_BUILD_TYPE=Release
-/usr/bin/cmake --build /home/fett/jetti/Jetson --target all -- -j 12 -DUSE_CLANG=Off
+script_dir="$(dirname "$(readlink -f "$0")")"
+
+build_dir="$script_dir/build"
+
+mkdir -p "$build_dir"
+cd "$build_dir"
+#rm -rf *
+
+export CUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda
+export CUDACXX=/usr/local/cuda/bin/nvcc
+
+cmake -DCMAKE_BUILD_TYPE=Release -DAVXPOWER=ON ..
+cmake --build $build_dir --target gpu_compressstore2 -- -j 12
