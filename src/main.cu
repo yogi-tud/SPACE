@@ -54,7 +54,7 @@ int main(int argc, char** argv)
 
     // load data
     std::vector<float> col;
-    size_t ele_count = MEBIBYTE* datasize_MIB / sizeof (uint64_t);
+    size_t ele_count = MEBIBYTE* datasize_MIB / sizeof (float);
 
    // printf("parsing %s\n", csv_path);
     //
@@ -65,39 +65,42 @@ int main(int argc, char** argv)
     //0 uniform
     //1 skew
     //2 csv arade
-    uint8_t* pred = (uint8_t*) malloc(col.size()*sizeof(uint8_t)); //mask on host
+
 
     // gen predicate mask
     size_t one_count=sel*ele_count;
+    size_t mask_bytes = col.size();
+    uint8_t* pred = (uint8_t*) malloc(mask_bytes); //mask on host
 
     switch(dataset_pick) {
         case 0:
             genRandomInts(ele_count, 45000);
 
-            generate_mask_uniform(pred, 0, col.size(), sel);
+            generate_mask_uniform(pred, 0, ele_count, sel);
 
             dataset="uniform";
         break;
 
         case 1: //generate_mask_zipf(pred,one_count,0,col.size());
-            generate_mask_zipf(pred,one_count,0,col.size());
+
+            generate_mask_zipf(pred,one_count/8,0,ele_count);
             genRandomInts(ele_count, 45000);
 
             dataset="zipf";
         break;
 
-//        case 2: pred = gen_predicate(col, +[](float f) { return f > 55; }, &one_count).data();
-     //       dataset="arade";
-     //       load_csv(csv_path, {3}, col);
+       case 2: pred = gen_predicate(col, +[](float f) { return f > 55; }, &one_count).data();
+           dataset="arade";
+           load_csv(csv_path, {3}, col);
 
-        case 3: generate_mask_burst(pred,one_count,0,col.size(),1);
+        case 3: generate_mask_burst(pred,one_count/8,0,ele_count,0.01);
 
             genRandomInts(ele_count, 45000);
             dataset="burst";
         break;
 
     }
-    cout<<"DATASET: "<<dataset<<endl;
+  //  cout<<"DATASET: "<<dataset<<endl;
 
     CUDA_TRY(cudaSetDevice(1));
 
@@ -106,7 +109,8 @@ int main(int argc, char** argv)
 
    // generate_mask_uniform( pred,0,col.size(),0.01);
     //generate_mask_zipf(pred,col.size()/1000,0,col.size());
-    //  cpu_buffer_print(pred,0,1000);
+     // cpu_buffer_print(pred,0,100000);
+    cout<<"ELEMENTS: "<<ele_count<<endl;
      //auto pred = gen_predicate(
     //    col, +[](float f) { return f > 2000; }, &one_count);
 
