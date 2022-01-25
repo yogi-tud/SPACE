@@ -68,20 +68,21 @@ int main(int argc, char** argv)
     uint8_t* pred = (uint8_t*) malloc(col.size()*sizeof(uint8_t)); //mask on host
 
     // gen predicate mask
-    size_t one_count=0;
+    size_t one_count=sel*ele_count;
 
     switch(dataset_pick) {
         case 0:
             genRandomInts(ele_count, 45000);
 
             generate_mask_uniform(pred, 0, col.size(), sel);
-            one_count=col.size()*sel;
+
             dataset="uniform";
         break;
 
-        case 1: generate_mask_zipf(pred,one_count,0,col.size());
+        case 1: //generate_mask_zipf(pred,one_count,0,col.size());
+            generate_mask_zipf(pred,one_count,0,col.size());
             genRandomInts(ele_count, 45000);
-            one_count=col.size()*sel;
+
             dataset="zipf";
         break;
 
@@ -90,7 +91,7 @@ int main(int argc, char** argv)
      //       load_csv(csv_path, {3}, col);
 
         case 3: generate_mask_burst(pred,one_count,0,col.size(),1);
-            one_count=col.size()*sel;
+
             genRandomInts(ele_count, 45000);
             dataset="burst";
         break;
@@ -106,13 +107,17 @@ int main(int argc, char** argv)
    // generate_mask_uniform( pred,0,col.size(),0.01);
     //generate_mask_zipf(pred,col.size()/1000,0,col.size());
     //  cpu_buffer_print(pred,0,1000);
-    // auto pred = gen_predicate(
+     //auto pred = gen_predicate(
     //    col, +[](float f) { return f > 2000; }, &one_count);
+
+
 
     uint8_t* d_mask;
     size_t size = col.size()*sizeof(uint8_t);
     CUDA_TRY(cudaMalloc(&d_mask, size));
     CUDA_TRY(cudaMemcpy(d_mask, &pred[0], size, cudaMemcpyHostToDevice));
+
+
 
     //uint8_t* d_mask = vector_to_gpu(pred);
 
@@ -179,7 +184,7 @@ int main(int argc, char** argv)
 
     //print subtimings:
 
-
+    //gpu_buffer_print(d_mask,0,500);
 
     // run benchmark
     std::vector<float> timings(benchs.size(), 0.0f);
