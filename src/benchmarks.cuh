@@ -457,3 +457,12 @@ bool validate(intermediate_data* id, float* d_validation, float* d_output, uint6
     if (failure_count) *failure_count = fc;
     return (fc == 0);
 }
+
+bool validate(intermediate_data* id, uint64_t* d_validation, uint64_t* d_output, uint64_t out_length, bool report_failures, uint64_t* failure_count = NULL)
+{
+    val_to_gpu(id->d_failure_count, 0);
+    kernel_check_validation<<<64, 32>>>(d_validation, d_output, out_length, id->d_failure_count, report_failures);
+    auto fc = gpu_to_val(id->d_failure_count);
+    if (failure_count) *failure_count = fc;
+    return (fc == 0);
+}

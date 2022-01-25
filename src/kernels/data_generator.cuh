@@ -129,7 +129,7 @@ __global__ void kernel_check_validation(T* d_validation, T* d_data, uint64_t cou
 
     for (uint64_t i = tid; i < count; i += gridstride) {
         if (d_validation[i] != d_data[i]) {
-            if (report_failures) printf("failure: index: %lu: expected: %f, got: %f\n", i, d_validation[i], d_data[i]);
+            if (report_failures) //printf("failure: index: %lu: expected: %f, got: %f\n", i, d_validation[i], d_data[i]);
             failures++;
         }
     }

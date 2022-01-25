@@ -85,9 +85,9 @@ int main(int argc, char** argv)
             dataset="zipf";
         break;
 
-        case 2: pred = gen_predicate(col, +[](float f) { return f > 55; }, &one_count).data();
-            dataset="arade";
-            load_csv(csv_path, {3}, col);
+//        case 2: pred = gen_predicate(col, +[](float f) { return f > 55; }, &one_count).data();
+     //       dataset="arade";
+     //       load_csv(csv_path, {3}, col);
 
         case 3: generate_mask_burst(pred,one_count,0,col.size(),1);
             one_count=col.size()*sel;
@@ -100,8 +100,8 @@ int main(int argc, char** argv)
 
     CUDA_TRY(cudaSetDevice(1));
 
-    float* d_input = vector_to_gpu(col);
-    float* d_output = alloc_gpu<float>(col.size() + 1);
+    float * d_input = vector_to_gpu(col);
+    float * d_output = alloc_gpu<float>(col.size() + 1);
 
    // generate_mask_uniform( pred,0,col.size(),0.01);
     //generate_mask_zipf(pred,col.size()/1000,0,col.size());
