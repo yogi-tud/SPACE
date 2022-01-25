@@ -175,7 +175,7 @@ int main(int argc, char** argv)
     }
 
     //cub has static block/thread config
-    benchs.emplace_back("bench8_cub_flagged",  bench8_cub_flagged(&id, d_input, d_mask, d_output, col.size()));
+    benchs.emplace_back("bench8_cub_flagged;0;0",  bench8_cub_flagged(&id, d_input, d_mask, d_output, col.size()));
 
     //print subtimings:
 

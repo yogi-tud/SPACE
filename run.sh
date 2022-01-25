@@ -3,7 +3,6 @@
 # uniform, zipf, csv, burst (0,1,2,3)
 maxmb="4096"
 dataset="0"
-
 ./build/gpu_compressstore2 $dataset 0.0002 4096
 ./build/gpu_compressstore2 $dataset 0.002 4096
 ./build/gpu_compressstore2 $dataset 0.02 4096
@@ -22,9 +21,7 @@ dataset="0"
 ./build/gpu_compressstore2 $dataset 0.28 4096
 ./build/gpu_compressstore2 $dataset 0.3 4096
 ./build/gpu_compressstore2 $dataset 0.32 4096
-
 dataset="1"
-
 ./build/gpu_compressstore2 $dataset 0.0002 4096
 ./build/gpu_compressstore2 $dataset 0.002 4096
 ./build/gpu_compressstore2 $dataset 0.02 4096
@@ -43,9 +40,7 @@ dataset="1"
 ./build/gpu_compressstore2 $dataset 0.28 4096
 ./build/gpu_compressstore2 $dataset 0.3 4096
 ./build/gpu_compressstore2 $dataset 0.32 4096
-
 dataset="3"
-
 ./build/gpu_compressstore2 $dataset 0.0002 4096
 ./build/gpu_compressstore2 $dataset 0.002 4096
 ./build/gpu_compressstore2 $dataset 0.02 4096
