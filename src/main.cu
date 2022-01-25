@@ -69,21 +69,21 @@ int main(int argc, char** argv)
 
     // gen predicate mask
     size_t one_count=sel*ele_count;
-    size_t mask_bytes = col.size();
+    size_t mask_bytes = (col.size()/8)+1 ;
     uint8_t* pred = (uint8_t*) malloc(mask_bytes); //mask on host
 
     switch(dataset_pick) {
         case 0:
             genRandomInts(ele_count, 45000);
 
-            generate_mask_uniform(pred, 0, ele_count, sel);
+            generate_mask_uniform(pred, 0, mask_bytes, sel);
 
             dataset="uniform";
         break;
 
         case 1: //generate_mask_zipf(pred,one_count,0,col.size());
 
-            generate_mask_zipf(pred,one_count/8,0,ele_count);
+            generate_mask_zipf(pred,one_count,0,mask_bytes);
             genRandomInts(ele_count, 45000);
 
             dataset="zipf";
@@ -93,7 +93,7 @@ int main(int argc, char** argv)
            dataset="arade";
            load_csv(csv_path, {3}, col);
 
-        case 3: generate_mask_burst(pred,one_count/8,0,ele_count,0.01);
+        case 3: generate_mask_burst(pred,one_count,0,mask_bytes,0.01);
 
             genRandomInts(ele_count, 45000);
             dataset="burst";
@@ -109,7 +109,7 @@ int main(int argc, char** argv)
 
    // generate_mask_uniform( pred,0,col.size(),0.01);
     //generate_mask_zipf(pred,col.size()/1000,0,col.size());
-     // cpu_buffer_print(pred,0,100000);
+      cpu_buffer_print(pred,0,100000);
     cout<<"ELEMENTS: "<<ele_count<<endl;
      //auto pred = gen_predicate(
     //    col, +[](float f) { return f > 2000; }, &one_count);
