@@ -87,21 +87,8 @@ std::vector<uint8_t> create_bitmask(float selectivity, size_t cluster_count, siz
     return final_bitmask_cpu;
 }
 
-int main(int argc, char** argv)
+template <typename T> void benchmark (int argc, char** argv)
 {
-
-
-
-
-
-
-
-
-
-
-
-
-
     int dataset_pick=0;
 
     size_t datasize_MIB = 1024;
@@ -120,7 +107,7 @@ int main(int argc, char** argv)
     //selectivity
     if(argc > 2)
     {
-         sel = atof(argv[2]);
+        sel = atof(argv[2]);
         cout<<"SELECTIVITY: "<<sel<<endl;
     }
     //datasize
@@ -159,7 +146,7 @@ int main(int argc, char** argv)
             genRandomInts(ele_count, 45000);
             generate_mask_uniform(pred, 0, mask_bytes, sel);
             dataset="uniform";
-        break;
+            break;
 
         case 1: //generate 1 big cluster
             im = create_bitmask(sel,1,ele_count);
@@ -168,9 +155,9 @@ int main(int argc, char** argv)
             genRandomInts(ele_count, 45000);
 
             dataset="single_cluster";
-        break;
+            break;
 
-       case 2:
+        case 2:
 
             im = create_bitmask(sel,cluster_count,ele_count);
             pred= im.data();
@@ -188,11 +175,11 @@ int main(int argc, char** argv)
     float * d_input = vector_to_gpu(col);
     float * d_output = alloc_gpu<float>(col.size() + 1);
 
-   // generate_mask_uniform( pred,0,col.size(),0.01);
+    // generate_mask_uniform( pred,0,col.size(),0.01);
     //generate_mask_zipf(pred,col.size()/1000,0,col.size());
-      cpu_buffer_print(pred,0,20);
+    cpu_buffer_print(pred,0,20);
     cout<<"ELEMENTS: "<<ele_count<<endl;
-     //auto pred = gen_predicate(
+    //auto pred = gen_predicate(
     //    col, +[](float f) { return f > 2000; }, &one_count);
 
 
@@ -228,7 +215,7 @@ int main(int argc, char** argv)
     std::string gridblock ="";
 
     //set up benchmarks for different cuda configs and algorithm on same data set
-        for(size_t blocksize = 256; blocksize <=1024 ; blocksize = blocksize * 2 ) {
+    for(size_t blocksize = 256; blocksize <=1024 ; blocksize = blocksize * 2 ) {
         for (size_t gridsize = 1024; gridsize <= 32768; gridsize = gridsize * 2) {
 
 
@@ -238,7 +225,7 @@ int main(int argc, char** argv)
 
             benchs.emplace_back("bench1_base_variant"+ gridblock
 
-                                    , bench1_base_variant(&id, d_input, d_mask, d_output, col.size(), 1024, blocksize, gridsize));
+                , bench1_base_variant(&id, d_input, d_mask, d_output, col.size(), 1024, blocksize, gridsize));
 
 
             benchs.emplace_back(
@@ -285,13 +272,13 @@ int main(int argc, char** argv)
     }
     std::cout<<"Number of experiments: "<<benchs.size()<<  std::endl;
 
-     string current_path (std::filesystem::current_path());
+    string current_path (std::filesystem::current_path());
 
 
 
     string device = "_rtx8000";
     //string filename = "../data/"+dataset+device+".txt";
-   // string filename = "/home/fett/edbt/EDBT_2022/data"+dataset+device+".txt";
+    // string filename = "/home/fett/edbt/EDBT_2022/data"+dataset+device+".txt";
     string filename = current_path+"/"+dataset+device+".txt";
     //string filename = dataset+device+".txt";
     //std::cout << "Current path is " << current_path << '\n'; // (1)
@@ -300,12 +287,19 @@ int main(int argc, char** argv)
 
     write_bench_file(filename,benchs, timings,iterations ,col.size() ,dataset ,(double)one_count / col.size() );
 
-  //  for (int i = 0; i < benchs.size(); i++) {
+    //  for (int i = 0; i < benchs.size(); i++) {
     //    std::cout<<subtimings[i].first<<" "<<subtimings[i].second<<std::endl;
-        //std::cout << "benchmark " << benchs[i].first << " time (ms): " << (double)timings[i] / iterations << std::endl;
-       // write_benchmark(col.size(),dataset,(double)one_count / col.size(),myfile,(double)timings[i] / iterations,benchs[i].first);
+    //std::cout << "benchmark " << benchs[i].first << " time (ms): " << (double)timings[i] / iterations << std::endl;
+    // write_benchmark(col.size(),dataset,(double)one_count / col.size(),myfile,(double)timings[i] / iterations,benchs[i].first);
 
     //}
+
+
+}
+
+int main(int argc, char** argv)
+{
+    benchmark<float>(argc, argv);
     return 0;
 }
 
