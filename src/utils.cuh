@@ -139,7 +139,7 @@ static std::vector<uint64_t> genRandomInts(size_t elements, size_t maximum)
 
 static void write_benchmark(size_t datasize, string dataset, float selectivity, fstream &myfile, float runtime_ms, string kernel)
 {
-    size_t MEBIBYTE = (1<<20);
+//    size_t MEBIBYTE = (1<<20);
 
     size_t total_datasize= datasize;
 

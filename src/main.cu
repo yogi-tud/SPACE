@@ -6,8 +6,9 @@
 #include <stdio.h>
 #include <thread>
 #include <vector>
+#include <bitset>
 #include <string>
-
+#define MEBIBYTE (1<<20)
 #define DISABLE_CUDA_TIME
 #define DELIM ";"
 #include "cuda_time.cuh"
@@ -20,87 +21,167 @@
 
 
 
+/***
+ *
+ *
+ * @param total_elements number of bits in mask
+ * @param selectivity percentage of elements that are set to 1 in bitmask
+ * @param cluster_count on how many clusters should the elements distributed
+ * @return a bitmask as uint8_t which is used for compressstore operations
+ */
+
+std::vector<uint8_t> create_bitmask(float selectivity, size_t cluster_count, size_t total_elements)
+{
+
+        std::vector<bool> bitset;
+
+
+        bitset.resize(total_elements);
+    size_t total_set_one = selectivity * total_elements;
+    size_t cluster_size = total_set_one / cluster_count;
+    size_t slice = bitset.size() / cluster_count;
+
+        //start by setting all to zero
+        for(int i=0; i<bitset.size();i++)
+        {
+            bitset[i]=0;
+        }
+
+    for (int i = 0 ; i< cluster_count;i++)
+    {
+        for(int k =0;k< cluster_size;k++)
+        {
+            size_t cluster_offset = i*slice;
+            bitset[k+cluster_offset]=1;
+        }
+    }
+    /**
+    for(int i=0;i<32;i++)
+    {
+    cout<<bitset[i];
+    }
+    cout<<endl;
+    **/
+
+
+
+    std::vector<uint8_t> final_bitmask_cpu;
+    final_bitmask_cpu.resize(total_elements/8);
+
+    for(int i =0;i< bitset.size();i++)
+    {
+        //set bit of uint8
+        if(bitset[i])
+        {
+            uint8_t current =final_bitmask_cpu[i/8];
+            int location = i % 8;
+            current = 1 << (7-location);
+            uint8_t add_res = final_bitmask_cpu[i/8];
+            add_res = add_res | current;
+            final_bitmask_cpu[i/8] = add_res;
+        }
+
+    }
+
+
+    return final_bitmask_cpu;
+}
+
 int main(int argc, char** argv)
 {
+
+
+
+
+
+
+
+
+
+
+
+
+
     int dataset_pick=0;
 
-    size_t datasize_MIB = 2048;
-    size_t MEBIBYTE = (1<<20);
+    size_t datasize_MIB = 1024;
+    size_t cluster_count =1;
     float sel = 0.025;
     int iterations = 3;
     bool report_failures = true;
     string dataset = "";
 
+    //dataset pick (0 uniform, 1 1cluster, 2 multiclsuter)
     if (argc > 1) {
-         dataset_pick = atoi(argv[1]);
+        dataset_pick = atoi(argv[1]);
         printf("setting dataset to %i\n", dataset_pick);
 
     }
+    //selectivity
     if(argc > 2)
     {
          sel = atof(argv[2]);
         cout<<"SELECTIVITY: "<<sel<<endl;
     }
+    //datasize
     if(argc > 3)
     {
         datasize_MIB  = atoi(argv[3]);
         cout<<"datasize: "<<datasize_MIB<<endl;
     }
+    if(argc > 4)
+    {
+        cluster_count  = atoi(argv[4]);
+        cout<<"cluste count: "<<cluster_count<<endl;
+    }
+
+    std::vector<uint8_t> mask1= create_bitmask(1,2,64);
 
 
 
 
-    const char* csv_path = "../res/Arade_1.csv";
-
-    // load data
     std::vector<float> col;
     size_t ele_count = MEBIBYTE* datasize_MIB / sizeof (float);
 
-   // printf("parsing %s\n", csv_path);
-    //
-
-    //take 2. gpu default remove for other BENCHE!!!
 
     col.resize(ele_count);
-    //0 uniform
-    //1 skew
-    //2 csv arade
 
 
-    // gen predicate mask
     size_t one_count=sel*ele_count;
     size_t mask_bytes = (col.size()/8)+1 ;
     uint8_t* pred = (uint8_t*) malloc(mask_bytes); //mask on host
 
+    std::vector<uint8_t> im;
+
+    //dataset pick (0 uniform, 1 1cluster, 2 multiclsuter)
     switch(dataset_pick) {
         case 0:
             genRandomInts(ele_count, 45000);
-
             generate_mask_uniform(pred, 0, mask_bytes, sel);
-
             dataset="uniform";
         break;
 
-        case 1: //generate_mask_zipf(pred,one_count,0,col.size());
-
-            generate_mask_zipf(pred,one_count,0,mask_bytes);
+        case 1: //generate 1 big cluster
+            im = create_bitmask(sel,1,ele_count);
+            pred= im.data();
+            // generate_mask_zipf(pred,one_count,0,mask_bytes);
             genRandomInts(ele_count, 45000);
 
-            dataset="zipf";
+            dataset="single_cluster";
         break;
 
-       case 2: pred = gen_predicate(col, +[](float f) { return f > 55; }, &one_count).data();
-           dataset="arade";
-           load_csv(csv_path, {3}, col);
+       case 2:
 
-        case 3: generate_mask_burst(pred,one_count,0,mask_bytes,0.01);
-
+            im = create_bitmask(sel,cluster_count,ele_count);
+            pred= im.data();
             genRandomInts(ele_count, 45000);
-            dataset="burst";
-        break;
+
+            dataset="multi_cluster";
+
+
 
     }
-  //  cout<<"DATASET: "<<dataset<<endl;
+
 
     CUDA_TRY(cudaSetDevice(1));
 
@@ -109,7 +190,7 @@ int main(int argc, char** argv)
 
    // generate_mask_uniform( pred,0,col.size(),0.01);
     //generate_mask_zipf(pred,col.size()/1000,0,col.size());
-      cpu_buffer_print(pred,0,100000);
+      cpu_buffer_print(pred,0,20);
     cout<<"ELEMENTS: "<<ele_count<<endl;
      //auto pred = gen_predicate(
     //    col, +[](float f) { return f > 2000; }, &one_count);
@@ -118,8 +199,8 @@ int main(int argc, char** argv)
 
     uint8_t* d_mask;
     size_t size = col.size()*sizeof(uint8_t);
-    CUDA_TRY(cudaMalloc(&d_mask, size));
-    CUDA_TRY(cudaMemcpy(d_mask, &pred[0], size, cudaMemcpyHostToDevice));
+    CUDA_TRY(cudaMalloc(&d_mask, mask_bytes));
+    CUDA_TRY(cudaMemcpy(d_mask, &pred[0], mask_bytes, cudaMemcpyHostToDevice));
 
 
 
@@ -227,6 +308,8 @@ int main(int argc, char** argv)
     //}
     return 0;
 }
+
+
 
 
 
