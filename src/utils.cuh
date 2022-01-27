@@ -141,7 +141,7 @@ static void write_benchmark(size_t datasize,string datatype, string dataset, flo
 {
 //    size_t MEBIBYTE = (1<<20);
     size_t MBSIZE= datasize * sizeof(T) / MEBIBYTE;
-    size_t MASKSIZE = datasize / sizeof(T) / MEBIBYTE;
+    size_t MASKSIZE = datasize  / MEBIBYTE;
     size_t total_size= MBSIZE + MASKSIZE;
 
     myfile
@@ -153,7 +153,7 @@ static void write_benchmark(size_t datasize,string datatype, string dataset, flo
        // <<thread_dim<<";"
       //  <<block_dim<<";"
         <<runtime_ms<<";"
-        <<(total_size) / (runtime_ms) * (1000/1024) <<endl;
+        <<((total_size) / (runtime_ms)) * (float)(1000.0/1024.0) <<endl;
         //mask size added for throughput
 
 
