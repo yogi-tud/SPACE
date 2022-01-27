@@ -267,7 +267,7 @@ template <typename T> void benchmark (int argc, char** argv, string datatype)
 
 
     string device = "_rtx8000";
-    string filename = current_path+"/"+dataset+device+dataype".txt";
+    string filename = current_path+"/"+dataset+device+datatype+".txt";
 
 
 
