@@ -89,7 +89,7 @@ template <typename T> void benchmark (int argc, char** argv, string datatype)
     int iterations = 5;
     bool report_failures = true;
     string dataset = "";
-
+    cout<<"datatype: "<<datatype<<endl;
     //dataset pick (0 uniform, 1 1cluster, 2 multiclsuter)
     if (argc > 1) {
         dataset_pick = atoi(argv[1]);

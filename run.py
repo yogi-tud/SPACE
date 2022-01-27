@@ -18,7 +18,7 @@ def run_sel(sel,dataset, datatype, cluster):
 
 if __name__ == '__main__':
 
-    print("miau")
+
     #bench 1: selectivity from 0.01 to 0.99 4% increments, datasize 1gib, all datasets, all datatypes
 
     #all selectivites
