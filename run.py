@@ -11,9 +11,9 @@ import os
 
 def run_sel(sel,dataset, datatype, cluster):
     run=(str(dataset)+" "+str(sel)+" "+str(1024)+" "+str(cluster)+" "+str(datatype+1))
-
-    cmd = './build/gpu_compressstore2 '+run
-    os.system(cmd)
+    print(run)
+    #cmd = './build/gpu_compressstore2 '+run
+    #os.system(cmd)
 
 
 if __name__ == '__main__':
@@ -26,10 +26,10 @@ if __name__ == '__main__':
     dataset = 0
 
     max_cluster = 64
-    run_sel(0.1, 1, 3, 4)
+
     for k in range(0,6,1):
         datatype = k
-        print(datatype)
+
 
         for f in range(1, 100, 2):
             sel=f/100
