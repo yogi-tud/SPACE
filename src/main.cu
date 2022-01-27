@@ -55,14 +55,6 @@ std::vector<uint8_t> create_bitmask(float selectivity, size_t cluster_count, siz
             bitset[k+cluster_offset]=1;
         }
     }
-    /**
-    for(int i=0;i<32;i++)
-    {
-    cout<<bitset[i];
-    }
-    cout<<endl;
-    **/
-
 
 
     std::vector<uint8_t> final_bitmask_cpu;
@@ -87,14 +79,14 @@ std::vector<uint8_t> create_bitmask(float selectivity, size_t cluster_count, siz
     return final_bitmask_cpu;
 }
 
-template <typename T> void benchmark (int argc, char** argv)
+template <typename T> void benchmark (int argc, char** argv, string datatype)
 {
     int dataset_pick=0;
 
     size_t datasize_MIB = 1024;
     size_t cluster_count =1;
     float sel = 0.025;
-    int iterations = 3;
+    int iterations = 5;
     bool report_failures = true;
     string dataset = "";
 
@@ -119,16 +111,18 @@ template <typename T> void benchmark (int argc, char** argv)
     if(argc > 4)
     {
         cluster_count  = atoi(argv[4]);
-        cout<<"cluste count: "<<cluster_count<<endl;
+        cout<<"cluster count: "<<cluster_count<<endl;
     }
+
+
 
     std::vector<uint8_t> mask1= create_bitmask(1,2,64);
 
 
 
 
-    std::vector<float> col;
-    size_t ele_count = MEBIBYTE* datasize_MIB / sizeof (float);
+    std::vector<T> col;
+    size_t ele_count = MEBIBYTE* datasize_MIB / sizeof (T);
 
 
     col.resize(ele_count);
@@ -143,7 +137,7 @@ template <typename T> void benchmark (int argc, char** argv)
     //dataset pick (0 uniform, 1 1cluster, 2 multiclsuter)
     switch(dataset_pick) {
         case 0:
-            genRandomInts(ele_count, 45000);
+            col=genRandomInts<T>(ele_count, 45000);
             generate_mask_uniform(pred, 0, mask_bytes, sel);
             dataset="uniform";
             break;
@@ -152,7 +146,7 @@ template <typename T> void benchmark (int argc, char** argv)
             im = create_bitmask(sel,1,ele_count);
             pred= im.data();
             // generate_mask_zipf(pred,one_count,0,mask_bytes);
-            genRandomInts(ele_count, 45000);
+           col= genRandomInts<T>(ele_count, 45000);
 
             dataset="single_cluster";
             break;
@@ -161,7 +155,7 @@ template <typename T> void benchmark (int argc, char** argv)
 
             im = create_bitmask(sel,cluster_count,ele_count);
             pred= im.data();
-            genRandomInts(ele_count, 45000);
+            col=genRandomInts<T>(ele_count, 45000);
 
             dataset="multi_cluster";
 
@@ -172,12 +166,12 @@ template <typename T> void benchmark (int argc, char** argv)
 
     CUDA_TRY(cudaSetDevice(1));
 
-    float * d_input = vector_to_gpu(col);
-    float * d_output = alloc_gpu<float>(col.size() + 1);
+    T * d_input = vector_to_gpu(col);
+    T * d_output = alloc_gpu<T>(col.size() + 1);
 
     // generate_mask_uniform( pred,0,col.size(),0.01);
     //generate_mask_zipf(pred,col.size()/1000,0,col.size());
-    cpu_buffer_print(pred,0,20);
+
     cout<<"ELEMENTS: "<<ele_count<<endl;
     //auto pred = gen_predicate(
     //    col, +[](float f) { return f > 2000; }, &one_count);
@@ -197,10 +191,10 @@ template <typename T> void benchmark (int argc, char** argv)
     printf("line count: %zu, one count: %zu, percentage: %f\n", col.size(), one_count, (double)one_count / col.size());
 
     // gen cpu side validation
-    std::vector<float> validation;
+    std::vector<T> validation;
     validation.resize(col.size());
     size_t out_length = generate_validation(&col[0], &pred[0], &validation[0], col.size());
-    float* d_validation = vector_to_gpu(validation);
+    T* d_validation = vector_to_gpu(validation);
 
     // prepare candidates for benchmark
     intermediate_data id{col.size(), 1024, 8}; // setup shared intermediate data
@@ -254,11 +248,7 @@ template <typename T> void benchmark (int argc, char** argv)
     //cub has static block/thread config
     benchs.emplace_back("bench8_cub_flagged;0;0",  bench8_cub_flagged(&id, d_input, d_mask, d_output, col.size()));
 
-    //print subtimings:
 
-    //gpu_buffer_print(d_mask,0,500);
-
-    // run benchmark
     std::vector<float> timings(benchs.size(), 0.0f);
     for (int it = 0; it < iterations; it++) {
         for (size_t i = 0; i < benchs.size(); i++) {
@@ -277,29 +267,53 @@ template <typename T> void benchmark (int argc, char** argv)
 
 
     string device = "_rtx8000";
-    //string filename = "../data/"+dataset+device+".txt";
-    // string filename = "/home/fett/edbt/EDBT_2022/data"+dataset+device+".txt";
-    string filename = current_path+"/"+dataset+device+".txt";
-    //string filename = dataset+device+".txt";
-    //std::cout << "Current path is " << current_path << '\n'; // (1)
+    string filename = current_path+"/"+dataset+device+dataype".txt";
 
 
 
-    write_bench_file(filename,benchs, timings,iterations ,col.size() ,dataset ,(double)one_count / col.size() );
 
-    //  for (int i = 0; i < benchs.size(); i++) {
-    //    std::cout<<subtimings[i].first<<" "<<subtimings[i].second<<std::endl;
-    //std::cout << "benchmark " << benchs[i].first << " time (ms): " << (double)timings[i] / iterations << std::endl;
-    // write_benchmark(col.size(),dataset,(double)one_count / col.size(),myfile,(double)timings[i] / iterations,benchs[i].first);
+    write_bench_file<T>(datatype,filename,benchs, timings,iterations ,col.size() ,dataset ,(double)one_count / col.size() );
 
-    //}
+
 
 
 }
 
 int main(int argc, char** argv)
 {
-    benchmark<float>(argc, argv);
+    //datatype as input
+    int pick_datatype=-1;
+    string datatype ="";
+    if(argc > 5)
+    {
+        pick_datatype  = atoi(argv[5]);
+        cout<<"PICK: "<<pick_datatype<<endl;
+    }
+
+    switch (pick_datatype)
+    {
+        case 1: datatype="uint8_t";
+            benchmark<uint8_t>(argc, argv,datatype);
+            break;
+        case 2: datatype="uint16_t";
+            benchmark<uint16_t>(argc, argv,datatype);
+            break;
+        case 3: datatype="uint32_t";
+            benchmark<uint32_t>(argc, argv,datatype);
+            break;
+        case 4: datatype="int";
+            benchmark<int>(argc, argv,datatype);
+            break;
+        case 5:  datatype="float";
+            benchmark<float>(argc, argv,datatype);
+            break;
+
+
+    }
+
+
+
+
     return 0;
 }
 

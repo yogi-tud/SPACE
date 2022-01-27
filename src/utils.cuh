@@ -123,9 +123,9 @@ template <typename T> std::vector<uint8_t> gen_predicate(const std::vector<T>& c
     return predicate_bitmask;
 }
 
-static std::vector<uint64_t> genRandomInts(size_t elements, size_t maximum)
+template <typename T> static std::vector<T> genRandomInts(size_t elements, size_t maximum)
 {
-    std::vector<uint64_t> randoms(elements);
+    std::vector<T> randoms(elements);
     for (size_t i = 0; i < elements; i++)
     {
         randoms[i] = rand() % maximum;
@@ -136,29 +136,32 @@ static std::vector<uint64_t> genRandomInts(size_t elements, size_t maximum)
 
     return randoms;
 }
-
-static void write_benchmark(size_t datasize, string dataset, float selectivity, fstream &myfile, float runtime_ms, string kernel)
+template <typename T>
+static void write_benchmark(size_t datasize,string datatype, string dataset, float selectivity, fstream &myfile, float runtime_ms, string kernel)
 {
 //    size_t MEBIBYTE = (1<<20);
-
-    size_t total_datasize= datasize;
+    size_t MBSIZE= datasize * sizeof(T) / MEBIBYTE;
+    size_t MASKSIZE = datasize / sizeof(T) / MEBIBYTE;
+    size_t total_size= MBSIZE + MASKSIZE;
 
     myfile
-        <<datasize * sizeof(uint64_t) / MEBIBYTE << ";"   //datasize in MIB
+        <<MBSIZE << ";"   //datasize in MIB
+        <<datatype<<";"
         <<dataset<< ";"
         <<selectivity<< ";"
         <<kernel<<";"                                       //kernel name
        // <<thread_dim<<";"
       //  <<block_dim<<";"
         <<runtime_ms<<";"
-        <<(((((total_datasize * sizeof(uint64_t) +(total_datasize / 8)) / MEBIBYTE) / runtime_ms )))/1.024<<endl;
+        <<(total_size) / (runtime_ms) * (1000/1024) <<endl;
         //mask size added for throughput
 
 
 
 }
-
-static void write_bench_file (string filename,
+template <typename T>
+static void write_bench_file (string datatype,
+    string filename,
     std::vector<std::pair<std::string, float>> benchs,
                              std::vector<float> timings,
                              size_t iterations,
@@ -182,7 +185,7 @@ static void write_bench_file (string filename,
 
         ofstream myfile_out(filename);
 
-            myfile_out << "datasize[MiB];dataset;selectivity;kernel;threads;blocks;time in ms;throughput [GiB / s ];" << endl;
+            myfile_out << "datasize[MiB];datatype;dataset;selectivity;kernel;threads;blocks;time in ms;throughput [GiB / s ];" << endl;
 
 
         myfile_out.close();
@@ -197,7 +200,7 @@ static void write_bench_file (string filename,
 
     for (int i = 0; i < benchs.size(); i++) {
         std::cout << "benchmark " << benchs[i].first << " time (ms): " << (double)timings[i] / iterations << std::endl;
-        write_benchmark(datasize,dataset,selectivity,myfile,(double)timings[i] / (double) iterations,benchs[i].first);
+        write_benchmark<T>(datasize,datatype,dataset,selectivity,myfile,(double)timings[i] / (double) iterations,benchs[i].first);
     }
 
     myfile.close();
