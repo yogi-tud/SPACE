@@ -10,7 +10,7 @@ import os
 # datatypes 1-uint8 2-uint16 3-uint32 4-int 5-float
 
 def run_sel(sel,dataset, datatype, cluster):
-    run=(str(dataset)+" "+str(sel)+" "+str(1024)+" "+str(cluster)+" "+str(datatype))
+    run=(str(dataset)+" "+str(sel)+" "+str(1024)+" "+str(cluster)+" "+str(datatype+1))
 
     cmd = './build/gpu_compressstore2 '+run
     os.system(cmd)

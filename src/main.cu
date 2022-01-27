@@ -137,12 +137,14 @@ template <typename T> void benchmark (int argc, char** argv, string datatype)
     //dataset pick (0 uniform, 1 1cluster, 2 multiclsuter)
     switch(dataset_pick) {
         case 0:
+            cluster_count =1;
             col=genRandomInts<T>(ele_count, 45000);
             generate_mask_uniform(pred, 0, mask_bytes, sel);
             dataset="uniform";
             break;
 
         case 1: //generate 1 big cluster
+            cluster_count =1;
             im = create_bitmask(sel,1,ele_count);
             pred= im.data();
             // generate_mask_zipf(pred,one_count,0,mask_bytes);
@@ -272,7 +274,7 @@ template <typename T> void benchmark (int argc, char** argv, string datatype)
 
 
 
-    write_bench_file<T>(datatype,filename,benchs, timings,iterations ,col.size() ,dataset ,(double)one_count / col.size() );
+    write_bench_file<T>(cluster_count,datatype,filename,benchs, timings,iterations ,col.size() ,dataset ,(double)one_count / col.size() );
 
 
 
@@ -287,7 +289,7 @@ int main(int argc, char** argv)
     if(argc > 5)
     {
         pick_datatype  = atoi(argv[5]);
-        cout<<"PICK: "<<pick_datatype<<endl;
+
     }
 
     switch (pick_datatype)
@@ -310,7 +312,7 @@ int main(int argc, char** argv)
 
 
     }
-
+    cout<<"PICK: "<<datatype<<endl;
 
 
 

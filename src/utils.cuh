@@ -137,7 +137,7 @@ template <typename T> static std::vector<T> genRandomInts(size_t elements, size_
     return randoms;
 }
 template <typename T>
-static void write_benchmark(size_t datasize,string datatype, string dataset, float selectivity, fstream &myfile, float runtime_ms, string kernel)
+static void write_benchmark(size_t clustercount,size_t datasize,string datatype, string dataset, float selectivity, fstream &myfile, float runtime_ms, string kernel)
 {
 //    size_t MEBIBYTE = (1<<20);
     size_t MBSIZE= datasize * sizeof(T) / MEBIBYTE;
@@ -149,6 +149,7 @@ static void write_benchmark(size_t datasize,string datatype, string dataset, flo
         <<datatype<<";"
         <<dataset<< ";"
         <<selectivity<< ";"
+        <<clustercount<<";"
         <<kernel<<";"                                       //kernel name
        // <<thread_dim<<";"
       //  <<block_dim<<";"
@@ -160,7 +161,8 @@ static void write_benchmark(size_t datasize,string datatype, string dataset, flo
 
 }
 template <typename T>
-static void write_bench_file (string datatype,
+static void write_bench_file (size_t clustercount,
+    string datatype,
     string filename,
     std::vector<std::pair<std::string, float>> benchs,
                              std::vector<float> timings,
@@ -185,7 +187,7 @@ static void write_bench_file (string datatype,
 
         ofstream myfile_out(filename);
 
-            myfile_out << "datasize[MiB];datatype;dataset;selectivity;kernel;threads;blocks;time in ms;throughput [GiB / s ];" << endl;
+            myfile_out << "datasize[MiB];datatype;dataset;selectivity;cluster_count;kernel;threads;blocks;time in ms;throughput [GiB / s ];" << endl;
 
 
         myfile_out.close();
@@ -200,7 +202,7 @@ static void write_bench_file (string datatype,
 
     for (int i = 0; i < benchs.size(); i++) {
         std::cout << "benchmark " << benchs[i].first << " time (ms): " << (double)timings[i] / iterations << std::endl;
-        write_benchmark<T>(datasize,datatype,dataset,selectivity,myfile,(double)timings[i] / (double) iterations,benchs[i].first);
+        write_benchmark<T>(clustercount,datasize,datatype,dataset,selectivity,myfile,(double)timings[i] / (double) iterations,benchs[i].first);
     }
 
     myfile.close();
