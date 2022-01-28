@@ -166,7 +166,7 @@ template <typename T> void benchmark (int argc, char** argv, string datatype)
     }
 
 
-    CUDA_TRY(cudaSetDevice(1));
+    CUDA_TRY(cudaSetDevice(0));
 
     T * d_input = vector_to_gpu(col);
     T * d_output = alloc_gpu<T>(col.size() + 1);
