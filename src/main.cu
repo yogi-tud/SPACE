@@ -86,7 +86,7 @@ template <typename T> void benchmark (int argc, char** argv, string datatype)
     size_t datasize_MIB = 1024;
     size_t cluster_count =1;
     float sel = 0.025;
-    int iterations = 5;
+    int iterations = 2;
     bool report_failures = true;
     string dataset = "";
     cout<<"datatype: "<<datatype<<endl;
@@ -262,9 +262,14 @@ template <typename T> void benchmark (int argc, char** argv, string datatype)
             }
         }
     }
+
+
     std::cout<<"Number of experiments: "<<benchs.size()<<  std::endl;
 
     string current_path (std::filesystem::current_path());
+
+
+
 
 
 
@@ -276,7 +281,9 @@ template <typename T> void benchmark (int argc, char** argv, string datatype)
 
     write_bench_file<T>(cluster_count,datatype,filename,benchs, timings,iterations ,col.size() ,dataset ,(double)one_count / col.size() );
 
-
+    CUDA_TRY(cudaFree(d_mask));
+    CUDA_TRY(cudaFree(d_input));
+    CUDA_TRY(cudaFree(d_output));
 
 
 }
