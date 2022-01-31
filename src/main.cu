@@ -316,6 +316,12 @@ int main(int argc, char** argv)
         case 5:  datatype="float";
             benchmark<float>(argc, argv,datatype);
             break;
+        case 6:  datatype="double";
+            benchmark<double>(argc, argv,datatype);
+            break;
+        case 7:  datatype="uint64_t";
+            benchmark<uint64_t>(argc, argv,datatype);
+            break;
 
 
     }
