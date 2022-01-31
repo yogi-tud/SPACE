@@ -227,7 +227,7 @@ template <typename T> void benchmark (int argc, char** argv, string datatype)
             benchs.emplace_back(
                 "bench2_base_variant_skipping"+gridblock, bench2_base_variant_skipping(&id, d_input, d_mask, d_output, col.size(), 1024, blocksize, gridsize));
 
-            benchs.emplace_back("bench3_3pass_streaming"+gridblock, bench3_3pass_streaming(&id, d_input, d_mask, d_output, col.size(), 1024, blocksize, gridsize));
+          //  benchs.emplace_back("bench3_3pass_streaming"+gridblock, bench3_3pass_streaming(&id, d_input, d_mask, d_output, col.size(), 1024, blocksize, gridsize));
 
             benchs.emplace_back(
                 "bench4_optimized_read_non_skipping_cub_pss"+gridblock,
