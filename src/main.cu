@@ -235,7 +235,7 @@ template <typename T> void benchmark (int argc, char** argv, string datatype)
     std::cout << "benchmark;chunk_length;block_size;grid_size;time_popc;time_pss1;time_pss2;time_proc;time_total" << std::endl;
     // run benchmark
     int grid_size_min =128;
-    int grid_size_max =2048;
+    int grid_size_max =4096;
     int block_size_min =128;
     int block_size_max =1024;
     int chunk_length_min =256;
