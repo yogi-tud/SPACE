@@ -11,9 +11,9 @@ import os
 
 def run_sel(sel,dataset, datatype, cluster):
     run=(str(dataset)+" "+str(sel)+" "+str(1024)+" "+str(cluster)+" "+str(datatype))
-    print(run)
+    #print(run)
     cmd = './build/gpu_compressstore2 '+run
-    #os.system(cmd)
+    os.system(cmd)
 
 
 if __name__ == '__main__':

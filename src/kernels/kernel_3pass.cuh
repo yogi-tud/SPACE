@@ -519,7 +519,6 @@ __global__ void kernel_3pass_proc_true_striding(
             input, output, mask, pss, popc, chunk_length, element_count, chunk_count_p2, offset);
     }
 }
-
 template <typename T, bool complete_pss, bool optimized_writeout>
 void switch_3pass_proc_true_striding(
     uint32_t block_count,
@@ -563,6 +562,7 @@ void switch_3pass_proc_true_striding(
         } break;
     }
 }
+
 
 // processing (for complete and partial pss) using optimized memory access pattern
 template <typename T, bool optimized_writeout>
