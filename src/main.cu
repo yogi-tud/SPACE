@@ -91,29 +91,37 @@ template <typename T> void benchmark (int argc, char** argv, string datatype)
     int iterations = 2;
     bool report_failures = true;
     string dataset = "";
-    cout<<"datatype: "<<datatype<<endl;
+    string device = "";
     //dataset pick (0 uniform, 1 1cluster, 2 multiclsuter)
     if (argc > 1) {
         dataset_pick = atoi(argv[1]);
-        printf("setting dataset to %i\n", dataset_pick);
+
 
     }
     //selectivity
     if(argc > 2)
     {
         sel = atof(argv[2]);
-        cout<<"SELECTIVITY: "<<sel<<endl;
+
     }
     //datasize
     if(argc > 3)
     {
         datasize_MIB  = atoi(argv[3]);
-        cout<<"datasize: "<<datasize_MIB<<endl;
+
     }
     if(argc > 4)
     {
         cluster_count  = atoi(argv[4]);
-        cout<<"cluster count: "<<cluster_count<<endl;
+
+    }
+    if(argc > 6)
+    {
+        stringstream ss;
+        ss <<argv[6];
+        ss >> device;
+
+
     }
 
 
@@ -175,7 +183,7 @@ template <typename T> void benchmark (int argc, char** argv, string datatype)
     T * d_output = alloc_gpu<T>(col.size() + 1);
     uint8_t* d_mask;
 
-    cout<<"ELEMENTS: "<<ele_count<<endl;
+
 
     CUDA_TRY(cudaMalloc(&d_mask, mask_bytes));
     CUDA_TRY(cudaMemcpy(d_mask, &pred[0], mask_bytes, cudaMemcpyHostToDevice));
@@ -185,7 +193,7 @@ template <typename T> void benchmark (int argc, char** argv, string datatype)
     //uint8_t* d_mask = vector_to_gpu(pred);
 
 
-    printf("line count: %zu, one count: %zu, percentage: %f\n", col.size(), one_count, (double)one_count / col.size());
+   // printf("line count: %zu, one count: %zu, percentage: %f\n", col.size(), one_count, (double)one_count / col.size());
 
     // gen cpu side validation
     std::vector<T> validation;
@@ -201,21 +209,20 @@ template <typename T> void benchmark (int argc, char** argv, string datatype)
     //building config string for csv output
     std::string gridblock ="";
 
-    cout<<"COL SIZE ELE COUNT: "<<col.size()<<" COL SIZE * datatype size "<<col.size()*sizeof(T)<<endl;
 
     std::vector<std::pair<std::string, std::function<timings(int, int, int)>>> benchs;
+
 
     benchs.emplace_back(
         "bench1_base_variant", [&](int cs, int bs, int gs) { return bench1_base_variant(&id, d_input, d_mask, d_output, col.size(), cs, bs, gs); });
     benchs.emplace_back("bench2_base_variant_skipping", [&](int cs, int bs, int gs) {
       return bench2_base_variant_skipping(&id, d_input, d_mask, d_output, col.size(), cs, bs, gs);
     });
-     //benchs.emplace_back(
-     //    "bench3_3pass_streaming", [&](int cs, int bs, int gs) {
-      //      return bench3_3pass_streaming(&id, d_input, d_mask, d_output, col.size(), cs, bs, gs);
-       //  });
+    benchs.emplace_back("bench3_3pass_streaming", [&](int cs, int bs, int gs) {
+      return bench3_3pass_streaming(&id, d_input, d_mask, d_output, col.size(), 1024, bs, gs);
+    });
 
-  //  bench3_3pass_streaming(&id, d_input, d_mask, d_output, col.size(), 1024, 256, 256);
+
 
     benchs.emplace_back("bench4_3pass_optimized_read_non_skipping_cub_pss", [&](int cs, int bs, int gs) {
       return bench4_3pass_optimized_read_non_skipping_cub_pss(&id, d_input, d_mask, d_output, col.size(), cs, bs, gs);
@@ -235,14 +242,48 @@ template <typename T> void benchmark (int argc, char** argv, string datatype)
       return bench10_3pass_optimized_read_skipping_optimized_writeout_cub_pss(&id, d_input, d_mask, d_output, col.size(), cs, bs, gs);
     });
 
-    std::cout << "benchmark;chunk_length;block_size;grid_size;time_popc;time_pss1;time_pss2;time_proc;time_total" << std::endl;
+
     // run benchmark
     int grid_size_min =128;
     int grid_size_max =4096;
     int block_size_min =128;
     int block_size_max =1024;
     int chunk_length_min =256;
-    int chunk_length_max =2048;
+    int chunk_length_max =4096;
+    size_t MBSIZE= col.size() * sizeof(T) / MEBIBYTE;
+    size_t MASKSIZE = col.size()  / MEBIBYTE;
+    size_t total_size= MBSIZE + MASKSIZE;
+
+    std::vector<string> results;
+    string current_path (std::filesystem::current_path());
+
+    string filename = current_path+"/"+dataset+"_"+device+"_"+datatype+".txt";
+    fstream myfile(filename,std::ios_base::app | std::ios_base::trunc);
+    myfile.open(filename);
+
+
+
+    //only write header if output file is empty
+    if(myfile.peek() == std::ifstream::traits_type::eof())
+    {
+
+        cout<<"PEEK"<<endl;
+
+
+
+        ofstream myfile_out(filename);
+
+        myfile_out << "benchmark;chunk_length;block_size;grid_size;time_popc;time_pss1;time_pss2;time_proc;time_total;selectivity,throughput" << endl;
+
+
+        myfile_out.close();
+
+    }
+
+    myfile.close();
+    myfile.open(filename);
+    myfile.seekg (0, ios::end);
+
 
     for (int grid_size = grid_size_min; grid_size <= grid_size_max; grid_size *= 2) {
         for (int block_size = block_size_min; block_size <= block_size_max; block_size *= 2) {
@@ -261,12 +302,21 @@ template <typename T> void benchmark (int argc, char** argv, string datatype)
                     }
                 }
                 for (int i = 0; i < benchs.size(); i++) {
-                    std::cout << benchs[i].first << ";" << chunk_length << ";" << block_size << ";" << grid_size << ";"
-                              << timings[i] / static_cast<float>(iterations) << std::endl;
+                    myfile << benchs[i].first << ";" << chunk_length << ";" << block_size << ";" << grid_size << ";"
+                              << timings[i] / static_cast<float>(iterations) << ";"
+                                <<sel <<";"<<(static_cast<float>(total_size) / timings[i].total) * (float)(1000.0/1024.0)<<endl;
+
                 }
             }
         }
     }
+
+
+
+
+
+
+    myfile.close();
 
     CUDA_TRY(cudaFree(d_mask));
     CUDA_TRY(cudaFree(d_input));
@@ -278,81 +328,6 @@ template <typename T> void benchmark (int argc, char** argv, string datatype)
 
 
 
-    /**
-     * OLLD BENCH
-    //set up benchmarks for different cuda configs and algorithm on same data set
-      //pair: experiment name, blocksize, gridsize, time ms
-
-    std::vector<std::pair<std::string, float>> benchs;
-    //timings for single kernels of a benchmark
-    std::vector<std::pair<std::string, float>> subtimings;
-
-     for(size_t blocksize = 256; blocksize <=1024 ; blocksize = blocksize * 2 ) {
-        for (size_t gridsize = 1024; gridsize <= 32768; gridsize = gridsize * 2) {
-
-
-
-            gridblock = ";"+std::to_string(blocksize)+";"+std::to_string(gridsize);
-
-
-            benchs.emplace_back("bench1_base_variant"+ gridblock
-
-                , bench1_base_variant(&id, d_input, d_mask, d_output, col.size(), 1024, blocksize, gridsize));
-
-
-            benchs.emplace_back(
-                "bench2_base_variant_skipping"+gridblock, bench2_base_variant_skipping(&id, d_input, d_mask, d_output, col.size(), 1024, blocksize, gridsize));
-
-            benchs.emplace_back("bench3_3pass_streaming"+gridblock, bench3_3pass_streaming(&id, d_input, d_mask, d_output, col.size(), 1024, blocksize, gridsize));
-
-            benchs.emplace_back(
-                "bench4_optimized_read_non_skipping_cub_pss"+gridblock,
-                bench4_optimized_read_non_skipping_cub_pss(&id, d_input, d_mask, d_output, col.size(), 1024, blocksize, gridsize));
-
-            benchs.emplace_back(
-                "bench5_3pass_optimized_read_skipping_partial_pss"+gridblock,
-                bench5_3pass_optimized_read_skipping_partial_pss(&id, d_input, d_mask, d_output, col.size(), 1024, blocksize, gridsize));
-
-            benchs.emplace_back(
-                "bench6_3pass_optimized_read_skipping_two_phase_pss"+gridblock,
-                bench6_3pass_optimized_read_skipping_two_phase_pss(&id, d_input, d_mask, d_output, col.size(), 1024, blocksize, gridsize));
-
-            benchs.emplace_back(
-                "bench7_3pass_optimized_read_skipping_cub_pss"+gridblock,
-                bench7_3pass_optimized_read_skipping_cub_pss(&id, d_input, d_mask, d_output, col.size(), 1024, blocksize, gridsize));
-        }
-    }
-
-    //cub has static block/thread config
-    benchs.emplace_back("bench8_cub_flagged;0;0",  bench8_cub_flagged(&id, d_input, d_mask, d_output, col.size()));
-
-
-    std::vector<float> timings(benchs.size(), 0.0f);
-    for (int it = 0; it < iterations; it++) {
-        for (size_t i = 0; i < benchs.size(); i++) {
-            timings[i] += benchs[i].second;
-            size_t failure_count;
-            if (!validate(&id, d_validation, d_output, out_length, report_failures, &failure_count)) {
-                fprintf(stderr, "validation failure in bench %s, run %i: %zu failures\n", benchs[i].first.c_str(), it, failure_count);
-                // exit(EXIT_FAILURE);
-            }
-        }
-    }
-
-
-    std::cout<<"Number of experiments: "<<benchs.size()<<  std::endl;
-
-    string current_path (std::filesystem::current_path());
-    string device = "_rtx8000";
-    string filename = current_path+"/"+dataset+device+datatype+".txt";
-
-    write_bench_file<T>(cluster_count,datatype,filename,benchs, timings,iterations ,col.size() ,dataset ,(double)one_count / col.size() );
-
-    CUDA_TRY(cudaFree(d_mask));
-    CUDA_TRY(cudaFree(d_input));
-    CUDA_TRY(cudaFree(d_output));
-     }
-**/
 
 
 int main(int argc, char** argv)
@@ -391,7 +366,7 @@ int main(int argc, char** argv)
 
 
     }
-    cout<<"PICK: "<<datatype<<endl;
+
 
 
 

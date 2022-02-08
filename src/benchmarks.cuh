@@ -1,9 +1,12 @@
 #pragma once
+#include <iomanip>
 #include <src/cub_wraps.cuh>
 #include <src/kernels/kernel_3pass.cuh>
+#include <src/kernels/kernel_pattern.cuh>
 #include <src/kernels/kernel_streaming_add.cuh>
 #include "cuda_try.cuh"
 #include "utils.cuh"
+
 struct timings {
     float popc;
     float pss1;
@@ -257,7 +260,7 @@ timings bench3_3pass_streaming(
             uint64_t chunks_to_process = ls ? chunks_for_last_stream : chunks_per_stream;
             uint64_t elements_to_process = ls ? elements_for_last_stream : elements_per_stream;
             // launch popc for i
-            kernel_3pass_popc_none_monolithic<<<popc1_blockcount, popc1_threadcount, 0, id->streams[i]>>>(
+            kernel_3pass_popc_none_striding<<<popc1_blockcount, popc1_threadcount, 0, id->streams[i]>>>(
                 d_mask + mask_bytes_per_stream * i, id->d_pss + chunks_per_stream * i, chunk_length32, elements_to_process);
             // launch pss for i
             // TODO these temporary storage allocations are timed
@@ -269,7 +272,7 @@ timings bench3_3pass_streaming(
             // record event i
             CUDA_TRY(cudaEventRecord(id->stream_events[i], id->streams[i]));
             // launch optimization popc 1024 for i
-            kernel_3pass_popc_none_monolithic<<<popc2_blockcount, popc2_threadcount, 0, id->streams[i]>>>(
+            kernel_3pass_popc_none_striding<<<popc2_blockcount, popc2_threadcount, 0, id->streams[i]>>>(
                 d_mask + mask_bytes_per_stream * i, id->d_popc + skip_blocks_per_stream * i, skip_block_size / 32, elements_to_process);
             // if i > 0: wait for event i-1
             if (i > 0) {
@@ -278,7 +281,7 @@ timings bench3_3pass_streaming(
             // launch optimized writeout proc for i using  d->out_count at i as
             // offset from output
 
-            switch_3pass_proc_true_striding<T, true>(
+            switch_3pass_proc_true_striding<T, true, true>(
                 proc_blockcount, proc_threadcount, id->streams[i], d_input + elements_per_stream * i, d_output, d_mask + mask_bytes_per_stream * i,
                 id->d_pss + chunks_per_stream * i, id->d_popc + skip_blocks_per_stream * i, chunk_length, elements_to_process, chunk_count_p2,
                 id->d_out_count + i);

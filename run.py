@@ -9,8 +9,8 @@ import os
 # datasize in MIB of input col
 # datatypes 1-uint8 2-uint16 3-uint32 4-int 5-float
 
-def run_sel(sel,dataset, datatype, cluster):
-    run=(str(dataset)+" "+str(sel)+" "+str(1024)+" "+str(cluster)+" "+str(datatype))
+def run_sel(sel,dataset, datatype, cluster, device):
+    run=(str(dataset)+" "+str(sel)+" "+str(1024)+" "+str(cluster)+" "+str(datatype)+str(device))
     #print(run)
     cmd = './build/gpu_compressstore2 '+run
     os.system(cmd)
@@ -22,6 +22,7 @@ if __name__ == '__main__':
     #bench 1: selectivity from 0.01 to 0.99 4% increments, datasize 1gib, all datasets, all datatypes
 
     #all selectivites
+    device = "quadro"
     sel = 0
     dataset = 0
 
@@ -40,10 +41,10 @@ if __name__ == '__main__':
                 c = 1
                 if dataset == 2:
                     while(c < max_cluster):
-                        run_sel(sel, dataset, datatype, c)
+                        run_sel(sel, dataset, datatype, c,device)
                         c=c*2
                 else:
-                    run_sel(sel, dataset, datatype, c)
+                    run_sel(sel, dataset, datatype, c,device)
                 # print(dataset)
 
     gc.collect()
