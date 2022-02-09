@@ -244,12 +244,21 @@ template <typename T> void benchmark (int argc, char** argv, string datatype)
 
 
     // run benchmark
+    /**
     int grid_size_min =256;
     int grid_size_max =4096;
     int block_size_min =128;
     int block_size_max =1024;
     int chunk_length_min =256;
     int chunk_length_max =2048;
+     **/
+
+    int grid_size_min =256;
+    int grid_size_max =256;
+    int block_size_min =128;
+    int block_size_max =128;
+    int chunk_length_min =512;
+    int chunk_length_max =4096;
     size_t MBSIZE= col.size() * sizeof(T) / MEBIBYTE;
     size_t MASKSIZE = col.size()  / MEBIBYTE;
     size_t total_size= MBSIZE + MASKSIZE;
@@ -267,7 +276,7 @@ template <typename T> void benchmark (int argc, char** argv, string datatype)
     if(myfile.peek() == std::ifstream::traits_type::eof())
     {
 
-        
+
 
 
 

@@ -7,7 +7,7 @@
 #include "cuda_try.cuh"
 #include "utils.cuh"
 // macro for timing gpu operations
-
+#define DISABLE_CUDA_TIME
 #define CUDA_TIME_FORCE_ENABLED(ce_start, ce_stop, stream, time, ...)                                                                                \
     do {                                                                                                                                             \
         CUDA_TRY(cudaStreamSynchronize((stream)));                                                                                                   \
