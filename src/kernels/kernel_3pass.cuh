@@ -6,13 +6,13 @@
 #include <stdio.h> // debugging
 
 #include "cuda_time.cuh"
-#define HARDCODED_CONFIGS_LOW_SEL
-//#define HARDCODED
+#define HARDCODED_HS
+#define HARDCODED
 #define CUDA_WARP_SIZE 32
 
 #ifdef HARDCODED
 
-#ifdef HARDCODED_CONFIGS_LOW_SEL
+#ifdef HARDCODED_LS
 #define popc_gs 8192
 #define popc_bs 32
 #define pss1_gs 4096
@@ -24,7 +24,7 @@
 #endif
 
 
-#ifdef HARDCODED_CONFIGS_HIGH_SEL
+#ifdef HARDCODED_HS
 #define popc_gs 8192
 #define popc_bs 32
 #define pss1_gs 512
@@ -172,6 +172,8 @@ float launch_3pass_pss_gmem(
     }
     else {
 #ifdef HARDCODED
+
+
         for (int i = 0; i < max_depth; i++) {
             uint32_t req_blockcount = ((chunk_count >> i) / (threadcount * 2)) + 1;
             if (blockcount > req_blockcount) {

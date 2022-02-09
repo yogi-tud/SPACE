@@ -43,6 +43,7 @@ set(SOURCES
 #)
 add_executable(gpu_compressstore2 ${SOURCES})
 
+
 option(AVXPOWER "use avx512-ish" OFF)
 if(AVXPOWER)
     target_compile_definitions(gpu_compressstore2 PUBLIC AVXPOWER)

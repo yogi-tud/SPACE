@@ -253,10 +253,10 @@ template <typename T> void benchmark (int argc, char** argv, string datatype)
     int chunk_length_max =2048;
      **/
 
-    int grid_size_min =256;
-    int grid_size_max =256;
-    int block_size_min =128;
-    int block_size_max =128;
+    int grid_size_min =4096;
+    int grid_size_max =4096;
+    int block_size_min =1024;
+    int block_size_max =1024;
     int chunk_length_min =512;
     int chunk_length_max =4096;
     size_t MBSIZE= col.size() * sizeof(T) / MEBIBYTE;
@@ -319,6 +319,7 @@ template <typename T> void benchmark (int argc, char** argv, string datatype)
             }
         }
     }
+
 
 
 
