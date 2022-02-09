@@ -267,7 +267,7 @@ template <typename T> void benchmark (int argc, char** argv, string datatype)
     if(myfile.peek() == std::ifstream::traits_type::eof())
     {
 
-        cout<<"PEEK"<<endl;
+        
 
 
 
