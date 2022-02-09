@@ -154,12 +154,14 @@ template <class T>
 timings bench1_base_variant(
     intermediate_data* id, T* d_input, uint8_t* d_mask, T* d_output, size_t element_count, size_t chunk_length, int block_size, int grid_size)
 {
+
     id->prepare_buffers(element_count, chunk_length, d_output, d_mask);
     timings times{};
     CUDA_TIME_FORCE_ENABLED(id->start, id->stop, 0, &times.total, {
         element_count = ceil2mult(element_count, 8);
         times.popc =
         launch_3pass_popc_none(id->dummy_event_1, id->dummy_event_2, grid_size, block_size, d_mask, id->d_pss, chunk_length, element_count);
+
         times.pss1 = launch_3pass_pss_gmem(
         id->dummy_event_1, id->dummy_event_2, grid_size, block_size, id->d_pss, id->chunk_count(chunk_length), id->d_out_count);
         times.pss2 =

@@ -51,7 +51,7 @@ float launch_3pass_popc_none(
     float time = 0;
     uint32_t chunk_length32 = chunk_length / 32;
     assert(blockcount);
-    CUDA_TIME(
+    CUDA_TIME_FORCE_ENABLED(
         ce_start, ce_stop, 0, &time, (kernel_3pass_popc_none_striding<<<blockcount, threadcount>>>(d_mask, d_pss, chunk_length32, element_count)));
     return time;
 }
@@ -123,12 +123,12 @@ float launch_3pass_pss_gmem(
         // reduce blockcount every depth iteration
         for (int i = 0; i < max_depth; i++) {
             blockcount = ((chunk_count >> i) / (threadcount * 2)) + 1;
-            CUDA_TIME(
+            CUDA_TIME_FORCE_ENABLED(
                 ce_start, ce_stop, 0, &ptime, (kernel_3pass_pss_gmem_monolithic<<<blockcount, threadcount>>>(d_pss, i, chunk_count, d_out_count)));
             time += ptime;
         }
         // last pass forces result into d_out_count
-        CUDA_TIME(
+        CUDA_TIME_FORCE_ENABLED(
             ce_start, ce_stop, 0, &ptime,
             (kernel_3pass_pss_gmem_monolithic<<<1, 1>>>(d_pss, static_cast<uint8_t>(max_depth), chunk_count, d_out_count)));
         time += ptime;
@@ -139,12 +139,12 @@ float launch_3pass_pss_gmem(
             if (blockcount > req_blockcount) {
                 blockcount = req_blockcount;
             }
-            CUDA_TIME(
+            CUDA_TIME_FORCE_ENABLED(
                 ce_start, ce_stop, 0, &ptime, (kernel_3pass_pss_gmem_striding<<<blockcount, threadcount>>>(d_pss, i, chunk_count, d_out_count)));
             time += ptime;
         }
         // last pass forces result into d_out_count
-        CUDA_TIME(
+        CUDA_TIME_FORCE_ENABLED(
             ce_start, ce_stop, 0, &ptime,
             (kernel_3pass_pss_gmem_monolithic<<<1, 1>>>(d_pss, static_cast<uint8_t>(max_depth), chunk_count, d_out_count)));
         time += ptime;
@@ -201,12 +201,12 @@ float launch_3pass_pss2_gmem(
     }
     if (blockcount == 0) {
         blockcount = (chunk_count / threadcount) + 1;
-        CUDA_TIME(
+        CUDA_TIME_FORCE_ENABLED(
             ce_start, ce_stop, 0, &time,
             (kernel_3pass_pss2_gmem_monolithic<<<blockcount, threadcount>>>(d_pss_in, d_pss_out, chunk_count, chunk_count_p2)));
     }
     else {
-        CUDA_TIME(
+        CUDA_TIME_FORCE_ENABLED(
             ce_start, ce_stop, 0, &time,
             (kernel_3pass_pss2_gmem_striding<<<blockcount, threadcount>>>(d_pss_in, d_pss_out, chunk_count, chunk_count_p2)));
     }
@@ -561,13 +561,13 @@ float launch_3pass_proc_true(
         blockcount = 1;
     }
     if (full_pss) {
-        CUDA_TIME(
+        CUDA_TIME_FORCE_ENABLED(
             ce_start, ce_stop, 0, &time,
             (switch_3pass_proc_true_striding<T, true, optimized_writeout>(
                 blockcount, threadcount, 0, d_input, d_output, d_mask, d_pss, d_popc, chunk_length, element_count, chunk_count_p2, NULL)));
     }
     else {
-        CUDA_TIME(
+        CUDA_TIME_FORCE_ENABLED(
             ce_start, ce_stop, 0, &time,
             (switch_3pass_proc_true_striding<T, false, optimized_writeout>(
                 blockcount, threadcount, 0, d_input, d_output, d_mask, d_pss, d_popc, chunk_length, element_count, chunk_count_p2, NULL)));
@@ -663,13 +663,13 @@ float launch_3pass_proc_none(
     if (blockcount == 0) {
         blockcount = (chunk_count / threadcount) + 1;
         if (full_pss) {
-            CUDA_TIME(
+            CUDA_TIME_FORCE_ENABLED(
                 ce_start, ce_stop, 0, &time,
                 (kernel_3pass_proc_none_monolithic<T, true>
                 <<<blockcount, threadcount>>>(d_input, d_output, d_mask, d_pss, d_popc, chunk_length / 8, element_count, 0)));
         }
         else {
-            CUDA_TIME(
+            CUDA_TIME_FORCE_ENABLED(
                 ce_start, ce_stop, 0, &time,
                 (kernel_3pass_proc_none_monolithic<T, false>
                 <<<blockcount, threadcount>>>(d_input, d_output, d_mask, d_pss, d_popc, chunk_length / 8, element_count, chunk_count_p2)));
@@ -677,13 +677,13 @@ float launch_3pass_proc_none(
     }
     else {
         if (full_pss) {
-            CUDA_TIME(
+            CUDA_TIME_FORCE_ENABLED(
                 ce_start, ce_stop, 0, &time,
                 (kernel_3pass_proc_none_striding<T, true>
                 <<<blockcount, threadcount>>>(d_input, d_output, d_mask, d_pss, d_popc, chunk_length / 8, element_count, 0)));
         }
         else {
-            CUDA_TIME(
+            CUDA_TIME_FORCE_ENABLED(
                 ce_start, ce_stop, 0, &time,
                 (kernel_3pass_proc_none_striding<T, false>
                 <<<blockcount, threadcount>>>(d_input, d_output, d_mask, d_pss, d_popc, chunk_length / 8, element_count, chunk_count_p2)));
