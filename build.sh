@@ -10,5 +10,6 @@ cd "$build_dir"
 export CUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda
 export CUDACXX=/usr/local/cuda/bin/nvcc
 
-cmake -DCMAKE_BUILD_TYPE=Release -DAVXPOWER=ON ..
-cmake --build $build_dir --target gpu_compressstore2 -- -j 12
+
+cmake --build $build_dir --target clean -j 24
+cmake --build $build_dir --target gpu_compressstore2 -j 24
