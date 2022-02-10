@@ -10,7 +10,8 @@ import os
 # datatypes 1-uint8 2-uint16 3-uint32 4-int 5-float
 
 def run_sel(sel,dataset, datatype, cluster, device):
-    run=(str(dataset)+" "+str(sel)+" "+str(1024)+" "+str(cluster)+" "+str(datatype)+" "+str(device))
+    format_sel = "{:.8f}".format(sel)
+    run=("lowsel"+""+str(dataset)+" "+str(format_sel)+" "+str(1024)+" "+str(cluster)+" "+str(datatype)+" "+str(device))
     #print(run)
     cmd = './gpu_compressstore2 '+run
     os.system(cmd)
@@ -23,17 +24,17 @@ if __name__ == '__main__':
 
     #all selectivites
     device = "quadro"
-    sel = 0
+    sel = 1
     dataset = 0
-
+    format_sel = "{:.8f}".format(sel)
     max_cluster = 64
 
     for k in range(1,8,1):
         datatype = k
+        sel = 1
 
-
-        for f in range(1, 100, 4):
-            sel=f/100
+        for f in range(1, 7, 1):
+            sel=sel/10
 
 
             for i in range(0, 3, 1):
