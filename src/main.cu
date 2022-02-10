@@ -86,7 +86,7 @@ template <typename T> void benchmark (int argc, char** argv, string datatype)
     int dataset_pick=0;
 
     size_t datasize_MIB = 1024;
-    size_t cluster_count =1;
+    size_t cluster_count =0;
     float sel = 0.025;
     int iterations = 2;
     bool report_failures = true;
@@ -282,7 +282,7 @@ template <typename T> void benchmark (int argc, char** argv, string datatype)
 
         ofstream myfile_out(filename);
 
-        myfile_out << "benchmark;chunk_length;block_size;grid_size;time_popc;time_pss1;time_pss2;time_proc;time_total;selectivity,throughput" << endl;
+        myfile_out << "benchmark;chunk_length;cluster;block_size;grid_size;time_popc;time_pss1;time_pss2;time_proc;time_total;selectivity,throughput" << endl;
 
 
         myfile_out.close();
@@ -311,7 +311,7 @@ template <typename T> void benchmark (int argc, char** argv, string datatype)
                     }
                 }
                 for (int i = 0; i < benchs.size(); i++) {
-                    myfile << benchs[i].first << ";" << chunk_length << ";" << block_size << ";" << grid_size << ";"
+                    myfile << benchs[i].first << ";" << chunk_length << ";" <<cluster_count<<";"<< block_size << ";" << grid_size << ";"
                               << timings[i] / static_cast<float>(iterations) << ";"
                                 <<sel <<";"<<(static_cast<float>(total_size) / timings[i].total) * (float)(1000.0/1024.0)<<endl;
 
