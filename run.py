@@ -12,7 +12,7 @@ import os
 def run_sel(sel,dataset, datatype, cluster, device):
     run=(str(dataset)+" "+str(sel)+" "+str(1024)+" "+str(cluster)+" "+str(datatype)+" "+str(device))
     #print(run)
-    cmd = './gpu_compressstore2 '+run
+    cmd = './build/gpu_compressstore2 '+run
     os.system(cmd)
 
 

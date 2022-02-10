@@ -13,7 +13,7 @@ def run_sel(sel,dataset, datatype, cluster, device):
     format_sel = "{:.8f}".format(sel)
     run=("lowsel"+""+str(dataset)+" "+str(format_sel)+" "+str(1024)+" "+str(cluster)+" "+str(datatype)+" "+str(device))
     #print(run)
-    cmd = './gpu_compressstore2 '+run
+    cmd = './build/gpu_compressstore2 '+run
     os.system(cmd)
 
 
