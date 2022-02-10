@@ -35,14 +35,14 @@ if __name__ == '__main__':
         for f in range(1, 100, 4):
             sel=f/100
 
-            dataset = 2
-           # for i in range(0, 3, 1):
-             #   dataset = i
-              #  c = 1
-                #if dataset == 2:
-                #    while(c < max_cluster):
-                #        run_sel(sel, dataset, datatype, c,device)
-                #        c=c*2
+
+            for i in range(0, 3, 1):
+                dataset = i
+                c = 1
+                if dataset == 2:
+                    while(c < max_cluster):
+                        run_sel(sel, dataset, datatype, c,device)
+                        c=c*2
              #   else:
             run_sel(sel, dataset, datatype, c,device)
                 # print(dataset)
