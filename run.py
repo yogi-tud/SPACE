@@ -10,10 +10,10 @@ import os
 # datatypes 1-uint8 2-uint16 3-uint32 4-int 5-float
 
 def run_sel(sel,dataset, datatype, cluster, device):
-    run=(str(dataset)+" "+str(sel)+" "+str(1024)+" "+str(cluster)+" "+str(datatype)+str(device))
-    #print(run)
+    run=(str(dataset)+" "+str(sel)+" "+str(1024)+" "+str(cluster)+" "+str(datatype)+" "+str(device))
+    print(run)
     cmd = './build/gpu_compressstore2 '+run
-    os.system(cmd)
+    #os.system(cmd)
 
 
 if __name__ == '__main__':
@@ -43,8 +43,8 @@ if __name__ == '__main__':
                     while(c < max_cluster):
                         run_sel(sel, dataset, datatype, c,device)
                         c=c*2
-             #   else:
-            run_sel(sel, dataset, datatype, c,device)
+                else:
+                    run_sel(sel, dataset, datatype, 0,device)
                 # print(dataset)
 
     gc.collect()
