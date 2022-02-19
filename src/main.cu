@@ -88,7 +88,7 @@ template <typename T> void benchmark (int argc, char** argv, string datatype)
     size_t datasize_MIB = 1024;
     size_t cluster_count =0;
     float sel = 0.025;
-    int iterations = 2;
+    int iterations = 5;
     bool report_failures = true;
     string dataset = "";
     string device = "";
